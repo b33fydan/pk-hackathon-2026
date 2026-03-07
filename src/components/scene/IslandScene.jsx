@@ -35,7 +35,10 @@ import { soundManager } from '../../utils/soundManager';
 
 const HERO_CENTER = new THREE.Vector3(0, 0, 1.8);
 const WORLD_SCALE = 1.2;
-const TERRAIN_TILE_SIZE = (0.96 * 0.7) / WORLD_SCALE;
+const TOP_TERRAIN_TILE_SIZE = 0.9;
+const UNDER_TERRAIN_TILE_SIZE = 1.02;
+const PROP_VISUAL_SCALE = 0.82;
+const LOCAL_PROP_SCALE = PROP_VISUAL_SCALE / WORLD_SCALE;
 
 function round(value) {
   return Number(value.toFixed(2));
@@ -80,6 +83,11 @@ function clearGroup(group) {
     group.remove(child);
     disposeObject(child);
   }
+}
+
+function scaleSceneProp(object, scale = LOCAL_PROP_SCALE) {
+  object.scale.setScalar(scale);
+  return object;
 }
 
 function createQuestionBlock() {
@@ -204,6 +212,33 @@ function createFountain(x, z) {
   return group;
 }
 
+function createLandscapePlateau() {
+  const topMaterial = new THREE.MeshStandardMaterial({
+    color: '#3ddc6a',
+    roughness: 0.88,
+    metalness: 0.02,
+  });
+  const sideMaterial = new THREE.MeshStandardMaterial({
+    color: '#5b4527',
+    roughness: 0.92,
+    metalness: 0.02,
+  });
+  const plateau = new THREE.Mesh(
+    new THREE.BoxGeometry(ISLAND_GRID_SIZE - 0.25, 0.72, ISLAND_GRID_SIZE - 0.25),
+    [
+      sideMaterial,
+      sideMaterial,
+      topMaterial,
+      sideMaterial,
+      sideMaterial,
+      sideMaterial,
+    ],
+  );
+  plateau.position.set(0, -0.62, 0);
+  plateau.receiveShadow = true;
+  return plateau;
+}
+
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -294,44 +329,44 @@ function createStageGroup(stage) {
   const group = new THREE.Group();
 
   if (stage === 1) {
-    group.add(createTree(-3.1, -0.3, 'oak'));
-    group.add(createTree(-2.4, 2.1, 'pine'));
-    group.add(createFlowerPatch(-1.4, -2.3, ['#f472b6', '#fde047', '#60a5fa']));
+    group.add(scaleSceneProp(createTree(-3.1, -0.3, 'oak')));
+    group.add(scaleSceneProp(createTree(-2.4, 2.1, 'pine')));
+    group.add(scaleSceneProp(createFlowerPatch(-1.4, -2.3, ['#f472b6', '#fde047', '#60a5fa'])));
   }
 
   if (stage === 2) {
-    group.add(createBuilding(-1.65, -1.15, 2, 1, 2, '#d6c39c'));
-    group.add(createPathSegment(-0.3, -0.3));
-    group.add(createPathSegment(-0.65, -0.62));
-    group.add(createPathSegment(-1, -0.92));
+    group.add(scaleSceneProp(createBuilding(-1.65, -1.15, 2, 1, 2, '#d6c39c')));
+    group.add(scaleSceneProp(createPathSegment(-0.3, -0.3)));
+    group.add(scaleSceneProp(createPathSegment(-0.65, -0.62)));
+    group.add(scaleSceneProp(createPathSegment(-1, -0.92)));
   }
 
   if (stage === 3) {
-    group.add(createBuilding(1.85, -1.05, 2, 2, 2, '#ddd6fe'));
-    group.add(createWell(0.15, -1.9));
-    group.add(createFlowerPatch(2.7, -0.4, ['#fb7185', '#facc15', '#86efac']));
+    group.add(scaleSceneProp(createBuilding(1.85, -1.05, 2, 2, 2, '#ddd6fe')));
+    group.add(scaleSceneProp(createWell(0.15, -1.9)));
+    group.add(scaleSceneProp(createFlowerPatch(2.7, -0.4, ['#fb7185', '#facc15', '#86efac'])));
   }
 
   if (stage === 4) {
-    group.add(createBuilding(-2.45, 1.6, 2, 2, 2, '#94a3b8'));
-    group.add(createFenceLine(-3.15, 0.8, 4, true));
-    group.add(createFenceLine(-3.15, 0.8, 4, false));
-    group.add(createPond(1.7, 1.8));
+    group.add(scaleSceneProp(createBuilding(-2.45, 1.6, 2, 2, 2, '#94a3b8')));
+    group.add(scaleSceneProp(createFenceLine(-3.15, 0.8, 4, true)));
+    group.add(scaleSceneProp(createFenceLine(-3.15, 0.8, 4, false)));
+    group.add(scaleSceneProp(createPond(1.7, 1.8)));
   }
 
   if (stage === 5) {
-    group.add(createBuilding(0.05, -2.7, 2, 4, 2, '#cbd5e1'));
-    group.add(createBuilding(1.65, -2.55, 1, 2, 1, '#94a3b8'));
-    group.add(createBridge(-0.6, -2.9));
-    group.add(createFlag(1.55, -3.05, '#fbbf24'));
+    group.add(scaleSceneProp(createBuilding(0.05, -2.7, 2, 4, 2, '#cbd5e1')));
+    group.add(scaleSceneProp(createBuilding(1.65, -2.55, 1, 2, 1, '#94a3b8')));
+    group.add(scaleSceneProp(createBridge(-0.6, -2.9)));
+    group.add(scaleSceneProp(createFlag(1.55, -3.05, '#fbbf24')));
   }
 
   if (stage === 6) {
-    group.add(createBuilding(2.45, 2.2, 2, 3, 2, '#e2e8f0'));
-    group.add(createFountain(-0.95, 2.35));
-    group.add(createCloud(-1.8, -0.5));
-    group.add(createCloud(2.1, 1.1));
-    group.add(createFlag(2.9, 2.6, '#38bdf8'));
+    group.add(scaleSceneProp(createBuilding(2.45, 2.2, 2, 3, 2, '#e2e8f0')));
+    group.add(scaleSceneProp(createFountain(-0.95, 2.35)));
+    group.add(scaleSceneProp(createCloud(-1.8, -0.5)));
+    group.add(scaleSceneProp(createCloud(2.1, 1.1)));
+    group.add(scaleSceneProp(createFlag(2.9, 2.6, '#38bdf8')));
   }
 
   return group;
@@ -347,8 +382,8 @@ function createIslandBase() {
       const worldX = x - (ISLAND_GRID_SIZE - 1) / 2;
       const worldZ = z - (ISLAND_GRID_SIZE - 1) / 2;
       const grassShade = COLORS.grass[(x + z) % COLORS.grass.length];
-      const topCube = createVoxel(worldX, height - 0.4, worldZ, grassShade, TERRAIN_TILE_SIZE);
-      const underCube = createVoxel(worldX, -1.25, worldZ, '#4b3621', TERRAIN_TILE_SIZE);
+      const topCube = createVoxel(worldX, height - 0.4, worldZ, grassShade, TOP_TERRAIN_TILE_SIZE);
+      const underCube = createVoxel(worldX, -1.25, worldZ, '#4b3621', UNDER_TERRAIN_TILE_SIZE);
 
       topCube.castShadow = true;
       topCube.receiveShadow = true;
@@ -371,19 +406,22 @@ function createIslandBase() {
   water.position.set(0, -1.7, 0);
   water.receiveShadow = true;
   island.add(water);
+  island.add(createLandscapePlateau());
 
-  island.add(createTree(-2.6, -2.4, 'pine'));
-  island.add(createTree(2.5, -1.9, 'round'));
-  island.add(createRocks(2.6, 2.1, 4));
+  island.add(scaleSceneProp(createTree(-2.6, -2.4, 'pine')));
+  island.add(scaleSceneProp(createTree(2.5, -1.9, 'round')));
+  island.add(scaleSceneProp(createRocks(2.6, 2.1, 4)));
 
   return {
     island,
     summary: {
       gridSize: ISLAND_GRID_SIZE,
       worldScale: WORLD_SCALE,
-      terrainTileSize: round(TERRAIN_TILE_SIZE * WORLD_SCALE),
+      terrainTileSize: round(TOP_TERRAIN_TILE_SIZE * WORLD_SCALE),
+      propVisualScale: round(PROP_VISUAL_SCALE),
       terrainVoxels: voxelCount,
       decorations: ['trees', 'rocks'],
+      landscapeFilled: true,
       water: true,
     },
   };
@@ -483,18 +521,18 @@ function rebuildTreasury(runtime, state) {
   clearGroup(runtime.roots.treasury);
 
   if (!state.income && state.activeBills.length === 0) {
-    runtime.roots.treasury.add(createQuestionBlock());
+    runtime.roots.treasury.add(scaleSceneProp(createQuestionBlock()));
     return;
   }
 
   if (state.income > 0) {
-    runtime.roots.treasury.add(createGoldPile(state.income));
+    runtime.roots.treasury.add(scaleSceneProp(createGoldPile(state.income)));
   }
 }
 
 function rebuildIdentity(runtime, state) {
   clearGroup(runtime.roots.identity);
-  runtime.roots.identity.add(createFlag(-1.2, 2.7, state.bannerColorHex));
+  runtime.roots.identity.add(scaleSceneProp(createFlag(-1.2, 2.7, state.bannerColorHex)));
 }
 
 function rebuildMonsters(runtime, bills) {
@@ -503,7 +541,7 @@ function rebuildMonsters(runtime, bills) {
 
   getMonsterLayout(bills).forEach(({ bill, position }) => {
     const color = BILL_CATEGORY_MAP[bill.category]?.color ?? BILL_CATEGORY_MAP.other.color;
-    const monster = createMonster(0, 0, color, getMonsterSize(bill.amount), bill.category);
+    const monster = scaleSceneProp(createMonster(0, 0, color, getMonsterSize(bill.amount), bill.category));
     monster.position.copy(position);
     runtime.roots.monsters.add(monster);
     runtime.monsterEntries.set(bill.id, {
@@ -523,6 +561,7 @@ function rebuildHero(runtime, state) {
   }
 
   const hero = createHeroForTier(state.armorTier);
+  hero.scale.setScalar(LOCAL_PROP_SCALE);
   hero.position.set(state.heroPosition.x, state.heroPosition.y, state.heroPosition.z);
   runtime.roots.hero.add(hero);
   runtime.heroGroup = hero;
