@@ -1,13 +1,54 @@
 import * as THREE from 'three';
 import { COLORS } from './constants';
 
-function makeMaterial(color, overrides = {}) {
-  return new THREE.MeshStandardMaterial({
+const geometryCache = new Map();
+const materialCache = new Map();
+const SHADOW_CAST_MIN_DIMENSION = 0.5;
+
+function normalizeValue(value) {
+  if (value instanceof THREE.Color) {
+    return value.getHexString();
+  }
+
+  return value;
+}
+
+export function getSharedBoxGeometry(width, height = width, depth = width) {
+  const key = `${width}|${height}|${depth}`;
+
+  if (!geometryCache.has(key)) {
+    const geometry = new THREE.BoxGeometry(width, height, depth);
+    geometry.userData.shared = true;
+    geometryCache.set(key, geometry);
+  }
+
+  return geometryCache.get(key);
+}
+
+export function getSharedMaterial(color, overrides = {}) {
+  const key = JSON.stringify([
     color,
-    roughness: 0.8,
-    metalness: 0.08,
-    ...overrides,
-  });
+    Object.entries(overrides)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([entryKey, value]) => [entryKey, normalizeValue(value)]),
+  ]);
+
+  if (!materialCache.has(key)) {
+    const material = new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.8,
+      metalness: 0.08,
+      ...overrides,
+    });
+    material.userData.shared = true;
+    materialCache.set(key, material);
+  }
+
+  return materialCache.get(key);
+}
+
+function shouldCastShadow(width, height = width, depth = width) {
+  return Math.max(width, height, depth) >= SHADOW_CAST_MIN_DIMENSION;
 }
 
 function pickColor(palette, index) {
@@ -24,24 +65,24 @@ function offsetValue(seed, amplitude) {
 
 export function createVoxel(x, y, z, color, size = 1) {
   const voxel = new THREE.Mesh(
-    new THREE.BoxGeometry(size, size, size),
-    makeMaterial(color),
+    getSharedBoxGeometry(size, size, size),
+    getSharedMaterial(color),
   );
 
   voxel.position.set(x, y, z);
-  voxel.castShadow = true;
+  voxel.castShadow = shouldCastShadow(size);
   voxel.receiveShadow = true;
   return voxel;
 }
 
 function createBoxMesh(x, y, z, width, height, depth, color, materialOptions = {}) {
   const mesh = new THREE.Mesh(
-    new THREE.BoxGeometry(width, height, depth),
-    makeMaterial(color, materialOptions),
+    getSharedBoxGeometry(width, height, depth),
+    getSharedMaterial(color, materialOptions),
   );
 
   mesh.position.set(x, y, z);
-  mesh.castShadow = true;
+  mesh.castShadow = shouldCastShadow(width, height, depth);
   mesh.receiveShadow = true;
   return mesh;
 }
@@ -80,8 +121,8 @@ export function createGroup(meshes) {
 
 export function createTree(x, z, style = 'pine') {
   const trunk = new THREE.Mesh(
-    new THREE.BoxGeometry(0.45, 1.3, 0.45),
-    makeMaterial(COLORS.wood),
+    getSharedBoxGeometry(0.45, 1.3, 0.45),
+    getSharedMaterial(COLORS.wood),
   );
   trunk.position.set(0, 0.65, 0);
 
@@ -125,8 +166,8 @@ export function createBuilding(x, z, width, height, depth, color) {
   }
 
   const roof = new THREE.Mesh(
-    new THREE.BoxGeometry(width + 0.25, 0.45, depth + 0.25),
-    makeMaterial(COLORS.bronze),
+    getSharedBoxGeometry(width + 0.25, 0.45, depth + 0.25),
+    getSharedMaterial(COLORS.bronze),
   );
   roof.position.set(0, height + 0.55, 0);
   roof.castShadow = true;
@@ -148,8 +189,8 @@ export function createCharacter(x, z, armorColor, hasShield = false) {
   group.add(createVoxel(0.55, 0.9, 0, armorColor, 0.24));
 
   const sword = new THREE.Mesh(
-    new THREE.BoxGeometry(0.18, 0.95, 0.18),
-    makeMaterial(COLORS.silver),
+    getSharedBoxGeometry(0.18, 0.95, 0.18),
+    getSharedMaterial(COLORS.silver),
   );
   sword.position.set(0.58, 0.75, 0);
   sword.rotation.z = -0.4;
@@ -158,8 +199,8 @@ export function createCharacter(x, z, armorColor, hasShield = false) {
 
   if (hasShield) {
     const shield = new THREE.Mesh(
-      new THREE.BoxGeometry(0.18, 0.7, 0.55),
-      makeMaterial(COLORS.bronze),
+      getSharedBoxGeometry(0.18, 0.7, 0.55),
+      getSharedMaterial(COLORS.bronze),
     );
     shield.position.set(-0.65, 0.9, 0);
     shield.castShadow = true;
@@ -318,8 +359,8 @@ export function createRocks(x, z, count = 3) {
 
   for (let index = 0; index < count; index += 1) {
     const rock = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3 + index * 0.05, 0.25 + index * 0.04, 0.3),
-      makeMaterial(pickColor(COLORS.stone, index)),
+      getSharedBoxGeometry(0.3 + index * 0.05, 0.25 + index * 0.04, 0.3),
+      getSharedMaterial(pickColor(COLORS.stone, index)),
     );
     rock.position.set(
       offsetValue(index + x, 0.55),

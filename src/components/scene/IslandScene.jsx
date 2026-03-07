@@ -30,6 +30,8 @@ import {
   createRocks,
   createTree,
   createVoxel,
+  getSharedBoxGeometry,
+  getSharedMaterial,
 } from '../../utils/voxelBuilder';
 import { soundManager } from '../../utils/soundManager';
 
@@ -69,15 +71,21 @@ function getIslandHeight(x, z) {
 
 function disposeObject(object) {
   object.traverse((child) => {
-    if ('geometry' in child && child.geometry) {
+    if ('geometry' in child && child.geometry && !child.geometry.userData?.shared) {
       child.geometry.dispose();
     }
 
     if ('material' in child && child.material) {
       if (Array.isArray(child.material)) {
-        child.material.forEach((material) => material.dispose());
+        child.material.forEach((material) => {
+          if (!material.userData?.shared) {
+            material.dispose();
+          }
+        });
       } else {
-        child.material.dispose();
+        if (!child.material.userData?.shared) {
+          child.material.dispose();
+        }
       }
     }
   });
@@ -219,18 +227,16 @@ function createFountain(x, z) {
 }
 
 function createLandscapePlateau() {
-  const topMaterial = new THREE.MeshStandardMaterial({
-    color: '#3ddc6a',
+  const topMaterial = getSharedMaterial('#3ddc6a', {
     roughness: 0.88,
     metalness: 0.02,
   });
-  const sideMaterial = new THREE.MeshStandardMaterial({
-    color: '#5b4527',
+  const sideMaterial = getSharedMaterial('#5b4527', {
     roughness: 0.92,
     metalness: 0.02,
   });
   const plateau = new THREE.Mesh(
-    new THREE.BoxGeometry(LANDSCAPE_PLATEAU_SIZE, LANDSCAPE_PLATEAU_HEIGHT, LANDSCAPE_PLATEAU_SIZE),
+    getSharedBoxGeometry(LANDSCAPE_PLATEAU_SIZE, LANDSCAPE_PLATEAU_HEIGHT, LANDSCAPE_PLATEAU_SIZE),
     [
       sideMaterial,
       sideMaterial,
@@ -241,6 +247,7 @@ function createLandscapePlateau() {
     ],
   );
   plateau.position.set(0, -0.7, 0);
+  plateau.castShadow = false;
   plateau.receiveShadow = true;
   return plateau;
 }
@@ -381,6 +388,9 @@ function createStageGroup(stage) {
 function createIslandBase() {
   const island = new THREE.Group();
   let voxelCount = 0;
+  const terrainEntriesByShade = new Map(COLORS.grass.map((color) => [color, []]));
+  const underEntries = [];
+  const matrixDummy = new THREE.Object3D();
 
   for (let x = 0; x < ISLAND_GRID_SIZE; x += 1) {
     for (let z = 0; z < ISLAND_GRID_SIZE; z += 1) {
@@ -388,22 +398,65 @@ function createIslandBase() {
       const worldX = x - (ISLAND_GRID_SIZE - 1) / 2;
       const worldZ = z - (ISLAND_GRID_SIZE - 1) / 2;
       const grassShade = COLORS.grass[(x + z) % COLORS.grass.length];
-      const topCube = createVoxel(worldX, height - 0.4, worldZ, grassShade, TOP_TERRAIN_TILE_SIZE);
-      const underCube = createVoxel(worldX, -1.25, worldZ, '#4b3621', UNDER_TERRAIN_TILE_SIZE);
-      topCube.scale.y = TOP_TERRAIN_TILE_HEIGHT_SCALE;
-      topCube.position.y -= 0.04;
-
-      topCube.castShadow = true;
-      topCube.receiveShadow = true;
-      underCube.receiveShadow = true;
-
-      island.add(topCube, underCube);
+      terrainEntriesByShade.get(grassShade).push({
+        x: worldX,
+        y: height - 0.44,
+        z: worldZ,
+      });
+      underEntries.push({
+        x: worldX,
+        y: -1.25,
+        z: worldZ,
+      });
       voxelCount += 2;
     }
   }
 
+  COLORS.grass.forEach((grassShade) => {
+    const entries = terrainEntriesByShade.get(grassShade) ?? [];
+    if (!entries.length) {
+      return;
+    }
+
+    const mesh = new THREE.InstancedMesh(
+      getSharedBoxGeometry(TOP_TERRAIN_TILE_SIZE, TOP_TERRAIN_TILE_SIZE, TOP_TERRAIN_TILE_SIZE),
+      getSharedMaterial(grassShade),
+      entries.length,
+    );
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+
+    entries.forEach((entry, index) => {
+      matrixDummy.position.set(entry.x, entry.y, entry.z);
+      matrixDummy.scale.set(1, TOP_TERRAIN_TILE_HEIGHT_SCALE, 1);
+      matrixDummy.updateMatrix();
+      mesh.setMatrixAt(index, matrixDummy.matrix);
+    });
+
+    mesh.instanceMatrix.needsUpdate = true;
+    island.add(mesh);
+  });
+
+  const underMesh = new THREE.InstancedMesh(
+    getSharedBoxGeometry(UNDER_TERRAIN_TILE_SIZE, UNDER_TERRAIN_TILE_SIZE, UNDER_TERRAIN_TILE_SIZE),
+    getSharedMaterial('#4b3621'),
+    underEntries.length,
+  );
+  underMesh.castShadow = false;
+  underMesh.receiveShadow = true;
+
+  underEntries.forEach((entry, index) => {
+    matrixDummy.position.set(entry.x, entry.y, entry.z);
+    matrixDummy.scale.set(1, 1, 1);
+    matrixDummy.updateMatrix();
+    underMesh.setMatrixAt(index, matrixDummy.matrix);
+  });
+
+  underMesh.instanceMatrix.needsUpdate = true;
+  island.add(underMesh);
+
   const water = new THREE.Mesh(
-    new THREE.BoxGeometry(WATER_SIZE, 0.35, WATER_SIZE),
+    getSharedBoxGeometry(WATER_SIZE, 0.35, WATER_SIZE),
     new THREE.MeshPhongMaterial({
       color: COLORS.water,
       transparent: true,
@@ -412,6 +465,7 @@ function createIslandBase() {
     }),
   );
   water.position.set(0, -1.7, 0);
+  water.castShadow = false;
   water.receiveShadow = true;
   island.add(water);
   island.add(createLandscapePlateau());
@@ -458,6 +512,71 @@ function createRuntimeState() {
     lastFrameTime: null,
     currentStage: 0,
     destroyed: false,
+    performance: {
+      fpsEstimate: 0,
+      avgFrameMs: 0,
+      frameSamples: [],
+    },
+  };
+}
+
+function updatePerformanceEstimate(runtime, deltaMs) {
+  const samples = runtime.performance.frameSamples;
+  samples.push(deltaMs);
+
+  if (samples.length > 45) {
+    samples.shift();
+  }
+
+  const total = samples.reduce((sum, sample) => sum + sample, 0);
+  const avgFrameMs = total / Math.max(samples.length, 1);
+  runtime.performance.avgFrameMs = round(avgFrameMs);
+  runtime.performance.fpsEstimate = round(1000 / Math.max(avgFrameMs, 1));
+}
+
+function collectSceneMetrics(runtime) {
+  const scene = runtime.scene;
+  const renderer = runtime.renderer;
+
+  if (!scene || !renderer) {
+    return null;
+  }
+
+  let meshCount = 0;
+  let instancedMeshCount = 0;
+  let shadowCasterCount = 0;
+
+  scene.traverse((child) => {
+    if (child instanceof THREE.InstancedMesh) {
+      meshCount += child.count;
+      instancedMeshCount += 1;
+      if (child.castShadow) {
+        shadowCasterCount += child.count;
+      }
+      return;
+    }
+
+    if (child instanceof THREE.Mesh) {
+      meshCount += 1;
+      if (child.castShadow) {
+        shadowCasterCount += 1;
+      }
+    }
+  });
+
+  return {
+    fpsEstimate: runtime.performance.fpsEstimate,
+    avgFrameMs: runtime.performance.avgFrameMs,
+    drawCalls: renderer.info.render.calls,
+    triangles: renderer.info.render.triangles,
+    points: renderer.info.render.points,
+    lines: renderer.info.render.lines,
+    geometries: renderer.info.memory.geometries,
+    textures: renderer.info.memory.textures,
+    meshCount,
+    instancedMeshCount,
+    shadowCasterCount,
+    pixelRatio: round(renderer.getPixelRatio()),
   };
 }
 
@@ -751,15 +870,16 @@ function updateIdleMotion(runtime, state, elapsedMs) {
 
 function createParticleCube(color, size) {
   const particle = new THREE.Mesh(
-    new THREE.BoxGeometry(size, size, size),
-    new THREE.MeshStandardMaterial({
-      color,
+    getSharedBoxGeometry(size, size, size),
+    getSharedMaterial(color, {
       roughness: 0.4,
       metalness: 0.2,
       emissive: color,
       emissiveIntensity: 0.18,
     }),
   );
+  particle.castShadow = false;
+  particle.receiveShadow = false;
   return particle;
 }
 
@@ -1174,8 +1294,8 @@ export default function IslandScene() {
 
     let renderer;
     const compactViewport = (container.clientWidth || window.innerWidth) < 960;
-    const pixelRatioCap = compactViewport ? 1.1 : 1.35;
-    const shadowMapSize = compactViewport ? 384 : 768;
+    const pixelRatioCap = compactViewport ? 1 : 1.25;
+    const shadowMapSize = compactViewport ? 384 : 640;
 
     try {
       renderer = new THREE.WebGLRenderer({
@@ -1287,6 +1407,7 @@ export default function IslandScene() {
 
       const deltaMs = Math.min(48, timestamp - runtime.lastFrameTime);
       runtime.lastFrameTime = timestamp;
+      updatePerformanceEstimate(runtime, deltaMs);
 
       stepAnimations(runtime, deltaMs);
       updateIdleMotion(runtime, sceneStateRef.current, timestamp);
@@ -1327,6 +1448,7 @@ export default function IslandScene() {
           width: renderer.domElement.width,
           height: renderer.domElement.height,
         },
+        performance: collectSceneMetrics(runtime),
       });
 
     const captureScene = async ({ title, subtitle, accentColor, accentDarkColor, filename } = {}) => {
@@ -1425,6 +1547,7 @@ export default function IslandScene() {
     };
 
     window.render_game_to_text = renderGameToText;
+    window.get_scene_debug_info = () => collectSceneMetrics(runtime);
     window.advanceTime = advanceTime;
     setCaptureScene(captureScene);
 
@@ -1441,6 +1564,7 @@ export default function IslandScene() {
       clearGroup(monstersRoot);
       clearGroup(heroRoot);
       clearGroup(particlesRoot);
+      disposeObject(worldRoot);
       renderer.dispose();
       setCaptureScene(null);
 
@@ -1454,6 +1578,10 @@ export default function IslandScene() {
 
       if (window.advanceTime === advanceTime) {
         delete window.advanceTime;
+      }
+
+      if (window.get_scene_debug_info) {
+        delete window.get_scene_debug_info;
       }
     };
   }, []);
