@@ -35,20 +35,22 @@ import {
 } from '../../utils/voxelBuilder';
 import { soundManager } from '../../utils/soundManager';
 
-const HERO_GROUND_OFFSET = -0.09;
-const MONSTER_GROUND_OFFSET = -0.08;
+const HERO_GROUND_OFFSET = -0.18;
+const MONSTER_GROUND_OFFSET = -0.18;
+const STRUCTURE_GROUND_OFFSET = -0.18;
 const HERO_CENTER = new THREE.Vector3(0, HERO_GROUND_OFFSET, 1.8);
 const WORLD_SCALE = 1.2;
-const TOP_TERRAIN_TILE_SIZE = 0.995;
-const TOP_TERRAIN_TILE_HEIGHT_SCALE = 0.58;
-const TOP_TERRAIN_Y_OFFSET = -0.5;
-const UNDER_TERRAIN_TILE_SIZE = 1.02;
-const UNDER_TERRAIN_Y_OFFSET = -1.31;
-const TERRAIN_WAVE_A = 0.024;
-const TERRAIN_WAVE_B = 0.018;
-const TERRAIN_CHECKER = 0.003;
+const TOP_TERRAIN_TILE_SIZE = 0.9;
+const TOP_TERRAIN_TILE_HEIGHT_SCALE = 0.54;
+const TOP_TERRAIN_Y_OFFSET = -0.455;
+const UNDER_TERRAIN_TILE_SIZE = 0.92;
+const UNDER_TERRAIN_Y_OFFSET = -1.26;
+const TERRAIN_WAVE_A = 0.021;
+const TERRAIN_WAVE_B = 0.015;
+const TERRAIN_CHECKER = 0.002;
 const LANDSCAPE_PLATEAU_SIZE = ISLAND_GRID_SIZE - 0.1;
-const LANDSCAPE_PLATEAU_HEIGHT = 0.58;
+const LANDSCAPE_PLATEAU_HEIGHT = 0.78;
+const LANDSCAPE_PLATEAU_Y = -0.61;
 const PROP_VISUAL_SCALE = 0.67;
 const BUILDING_VISUAL_SCALE = 0.65;
 const LOCAL_PROP_SCALE = PROP_VISUAL_SCALE / WORLD_SCALE;
@@ -118,6 +120,7 @@ function scaleSceneProp(object, scale = LOCAL_PROP_SCALE) {
 
 function scaleSceneBuilding(object, scale = LOCAL_BUILDING_SCALE) {
   object.scale.setScalar(scale);
+  object.position.y += STRUCTURE_GROUND_OFFSET;
   return object;
 }
 
@@ -263,7 +266,7 @@ function createLandscapePlateau() {
       sideMaterial,
     ],
   );
-  plateau.position.set(0, -0.7, 0);
+  plateau.position.set(0, LANDSCAPE_PLATEAU_Y, 0);
   plateau.castShadow = false;
   plateau.receiveShadow = true;
   return plateau;
@@ -761,8 +764,26 @@ function setGroupOpacity(group, opacity) {
       return;
     }
 
-    const materials = Array.isArray(child.material) ? child.material : [child.material];
-    materials.forEach((material) => {
+    const nextMaterials = (Array.isArray(child.material) ? child.material : [child.material]).map((material) => {
+      if (!material.userData?.shared) {
+        return material;
+      }
+
+      const clone = material.clone();
+      clone.userData = {
+        ...material.userData,
+        shared: false,
+      };
+      return clone;
+    });
+
+    if (Array.isArray(child.material)) {
+      child.material = nextMaterials;
+    } else {
+      child.material = nextMaterials[0];
+    }
+
+    nextMaterials.forEach((material) => {
       material.transparent = true;
       material.opacity = opacity;
     });
@@ -777,7 +798,7 @@ function animateMonsterIdle(entry, index, elapsedMs) {
   entry.group.rotation.y = 0;
 
   if (meta.category === 'housing') {
-    entry.group.position.y = entry.basePosition.y + Math.max(0, wave) * 0.015;
+    entry.group.position.y = entry.basePosition.y + Math.max(0, wave) * 0.012;
     entry.group.rotation.y = Math.sin(elapsedMs * 0.0014 + index) * 0.04;
     if (parts.head?.userData.basePosition) {
       parts.head.position.y = parts.head.userData.basePosition.y + Math.abs(wave) * 0.04;
@@ -792,7 +813,7 @@ function animateMonsterIdle(entry, index, elapsedMs) {
   }
 
   if (meta.category === 'utilities') {
-    entry.group.position.y = entry.basePosition.y + wave * 0.05;
+    entry.group.position.y = entry.basePosition.y + wave * 0.035;
     entry.group.rotation.y = Math.sin(elapsedMs * 0.0022 + index) * 0.14;
     ['sparkLeft', 'sparkRight', 'sparkTop'].forEach((key, sparkIndex) => {
       const spark = parts[key];
@@ -806,7 +827,7 @@ function animateMonsterIdle(entry, index, elapsedMs) {
   }
 
   if (meta.category === 'phone') {
-    entry.group.position.y = entry.basePosition.y + 0.08 + wave * 0.06;
+    entry.group.position.y = entry.basePosition.y + wave * 0.02;
     entry.group.rotation.y = elapsedMs * 0.0012 + index * 0.45;
     if (parts.iris?.userData.basePosition) {
       parts.iris.position.x = parts.iris.userData.basePosition.x + Math.sin(elapsedMs * 0.0042) * 0.06;
@@ -818,7 +839,7 @@ function animateMonsterIdle(entry, index, elapsedMs) {
   }
 
   if (meta.category === 'transport') {
-    entry.group.position.y = entry.basePosition.y + Math.max(0, wave) * 0.02;
+    entry.group.position.y = entry.basePosition.y + Math.max(0, wave) * 0.015;
     entry.group.rotation.y = Math.sin(elapsedMs * 0.0018 + index) * 0.08;
     (parts.legs ?? []).forEach((leg, legIndex) => {
       if (!leg?.userData.baseRotation) {
@@ -830,7 +851,7 @@ function animateMonsterIdle(entry, index, elapsedMs) {
   }
 
   if (meta.category === 'food') {
-    entry.group.position.y = entry.basePosition.y + wave * 0.03;
+    entry.group.position.y = entry.basePosition.y + wave * 0.02;
     if (parts.blob?.userData.baseScale) {
       parts.blob.scale.y = parts.blob.userData.baseScale.y - Math.abs(wave) * 0.14;
       parts.blob.scale.x = parts.blob.userData.baseScale.x + Math.abs(wave) * 0.08;
@@ -843,7 +864,7 @@ function animateMonsterIdle(entry, index, elapsedMs) {
   }
 
   if (meta.category === 'insurance') {
-    entry.group.position.y = entry.basePosition.y + 0.06 + wave * 0.05;
+    entry.group.position.y = entry.basePosition.y + wave * 0.025;
     entry.group.rotation.y = Math.sin(elapsedMs * 0.0015 + index) * 0.06;
     ['tailLeft', 'tailCenter', 'tailRight'].forEach((key, tailIndex) => {
       const tail = parts[key];
@@ -856,7 +877,7 @@ function animateMonsterIdle(entry, index, elapsedMs) {
   }
 
   if (meta.category === 'entertainment') {
-    entry.group.position.y = entry.basePosition.y + Math.abs(wave) * 0.08;
+    entry.group.position.y = entry.basePosition.y + Math.max(0, wave) * 0.035;
     entry.group.rotation.y = Math.sin(elapsedMs * 0.0032 + index) * 0.24;
     ['hornLeft', 'hornRight'].forEach((key, hornIndex) => {
       const horn = parts[key];
@@ -868,7 +889,7 @@ function animateMonsterIdle(entry, index, elapsedMs) {
     return;
   }
 
-  entry.group.position.y = entry.basePosition.y + wave * 0.04;
+  entry.group.position.y = entry.basePosition.y + wave * 0.025;
   entry.group.rotation.y = Math.sin(elapsedMs * 0.0016 + index) * 0.1;
   ['earLeft', 'earRight'].forEach((key, earIndex) => {
     const ear = parts[key];
@@ -885,7 +906,7 @@ function updateIdleMotion(runtime, state, elapsedMs) {
   }
 
   if (state.heroVisible && runtime.heroGroup) {
-    runtime.heroGroup.position.y = state.heroPosition.y + HERO_GROUND_OFFSET + Math.sin(elapsedMs * 0.0032) * 0.03;
+    runtime.heroGroup.position.y = state.heroPosition.y + HERO_GROUND_OFFSET + Math.sin(elapsedMs * 0.0032) * 0.018;
     runtime.heroGroup.rotation.y = Math.sin(elapsedMs * 0.0018) * 0.08;
   }
 

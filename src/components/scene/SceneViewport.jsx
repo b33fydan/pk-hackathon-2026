@@ -265,9 +265,9 @@ export default function SceneViewport() {
         </div>
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-3 sm:bottom-5 sm:px-4 lg:inset-x-auto lg:right-5 lg:bottom-24 lg:px-0 lg:justify-end">
-        <div className="pointer-events-auto w-full max-w-[22rem] rounded-[28px] border border-white/10 bg-black/35 px-3 py-3 shadow-[0_24px_60px_rgba(0,0,0,0.35)] backdrop-blur-sm sm:max-w-[28rem] sm:px-4 lg:w-[18rem] lg:max-w-[18rem]">
-          <div className="grid grid-cols-2 gap-2">
+      <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-3 sm:bottom-5 sm:px-4 lg:bottom-6">
+        <div className="pointer-events-auto w-full max-w-[22rem] rounded-[28px] border border-white/10 bg-black/35 px-3 py-3 shadow-[0_24px_60px_rgba(0,0,0,0.35)] backdrop-blur-sm sm:max-w-[28rem] sm:px-4 lg:max-w-[24rem]">
+          <div className="grid grid-cols-2 gap-2.5">
             <button
               type="button"
               disabled={!captureScene || battle.isAnimating || isCapturing}
@@ -280,15 +280,15 @@ export default function SceneViewport() {
               type="button"
               disabled={!captureAsset}
               onClick={handleDownload}
-              className="rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 sm:text-xs"
             >
-              Download
+              Save PNG
             </button>
             <button
               type="button"
               disabled={!captureAsset}
               onClick={handleCopy}
-              className="rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 sm:text-xs"
             >
               Copy
             </button>
@@ -296,7 +296,7 @@ export default function SceneViewport() {
               type="button"
               disabled={!captureAsset}
               onClick={handleShare}
-              className="rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 sm:text-xs"
             >
               Share
             </button>
@@ -304,7 +304,7 @@ export default function SceneViewport() {
               type="button"
               aria-label="Open achievements"
               onClick={() => setAchievementDialogOpen(true)}
-              className="rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-white transition hover:bg-white/10"
+              className="rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/10 sm:text-xs"
             >
               🏆
             </button>
@@ -312,7 +312,7 @@ export default function SceneViewport() {
               type="button"
               aria-pressed={!muted}
               onClick={handleToggleAudio}
-              className={`rounded-2xl border px-4 py-3 text-xs font-semibold uppercase tracking-[0.22em] transition ${
+              className={`rounded-2xl border px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] transition sm:text-xs ${
                 muted
                   ? 'border-red-300/20 bg-red-400/10 text-red-100 hover:bg-red-400/20'
                   : 'border-emerald-300/20 bg-emerald-400/12 text-emerald-50 hover:bg-emerald-400/18'
