@@ -36,7 +36,7 @@ import {
 import { soundManager } from '../../utils/soundManager';
 
 const HERO_GROUND_OFFSET = -0.18;
-const MONSTER_GROUND_OFFSET = -0.18;
+const MONSTER_GROUND_OFFSET = -0.1;
 const STRUCTURE_GROUND_OFFSET = -0.18;
 const HERO_CENTER = new THREE.Vector3(0, HERO_GROUND_OFFSET, 1.8);
 const WORLD_SCALE = 1.2;
@@ -52,8 +52,10 @@ const LANDSCAPE_PLATEAU_SIZE = ISLAND_GRID_SIZE - 0.1;
 const LANDSCAPE_PLATEAU_HEIGHT = 0.78;
 const LANDSCAPE_PLATEAU_Y = -0.61;
 const PROP_VISUAL_SCALE = 0.67;
+const MONSTER_VISUAL_SCALE = 0.78;
 const BUILDING_VISUAL_SCALE = 0.65;
 const LOCAL_PROP_SCALE = PROP_VISUAL_SCALE / WORLD_SCALE;
+const LOCAL_MONSTER_SCALE = MONSTER_VISUAL_SCALE / WORLD_SCALE;
 const LOCAL_BUILDING_SCALE = BUILDING_VISUAL_SCALE / WORLD_SCALE;
 
 function round(value) {
@@ -114,12 +116,12 @@ function clearGroup(group) {
 }
 
 function scaleSceneProp(object, scale = LOCAL_PROP_SCALE) {
-  object.scale.setScalar(scale);
+  object.scale.multiplyScalar(scale);
   return object;
 }
 
 function scaleSceneBuilding(object, scale = LOCAL_BUILDING_SCALE) {
-  object.scale.setScalar(scale);
+  object.scale.multiplyScalar(scale);
   object.position.y += STRUCTURE_GROUND_OFFSET;
   return object;
 }
@@ -307,20 +309,21 @@ function getMonsterSize(amount) {
 }
 
 function getMonsterLayout(bills) {
-  const startAngle = Math.PI * 0.92;
-  const endAngle = Math.PI * 0.08;
+  const startAngle = Math.PI * 0.72;
+  const endAngle = Math.PI * 0.28;
+  const xRadius = 2.45;
+  const zRadius = 1.25;
 
   return bills.map((bill, index) => {
     const ratio = bills.length === 1 ? 0.5 : index / (bills.length - 1);
     const angle = startAngle + (endAngle - startAngle) * ratio;
-    const radius = 2.35;
 
     return {
       bill,
       position: new THREE.Vector3(
-        Math.cos(angle) * radius,
+        Math.cos(angle) * xRadius,
         MONSTER_GROUND_OFFSET,
-        Math.sin(angle) * 1.55 - 0.45,
+        Math.sin(angle) * zRadius - 0.08,
       ),
     };
   });
@@ -698,7 +701,7 @@ function rebuildMonsters(runtime, bills) {
 
   getMonsterLayout(bills).forEach(({ bill, position }) => {
     const color = BILL_CATEGORY_MAP[bill.category]?.color ?? BILL_CATEGORY_MAP.other.color;
-    const monster = scaleSceneProp(createMonster(0, 0, color, getMonsterSize(bill.amount), bill.category));
+    const monster = scaleSceneProp(createMonster(0, 0, color, getMonsterSize(bill.amount), bill.category), LOCAL_MONSTER_SCALE);
     monster.position.copy(position);
     runtime.roots.monsters.add(monster);
     runtime.monsterEntries.set(bill.id, {
@@ -1441,6 +1444,17 @@ export default function IslandScene() {
     resizeObserver.observe(container);
     resize();
 
+    const hydrateSyncTimers = [0, 120, 320].map((delay) =>
+      window.setTimeout(() => {
+        if (runtime.destroyed) {
+          return;
+        }
+
+        rebuildIdleScene(runtime, sceneStateRef.current);
+        renderer.render(scene, camera);
+      }, delay),
+    );
+
     let animationFrameId = 0;
 
     const renderFrame = (timestamp) => {
@@ -1602,6 +1616,7 @@ export default function IslandScene() {
 
     return () => {
       runtime.destroyed = true;
+      hydrateSyncTimers.forEach((timerId) => window.clearTimeout(timerId));
       window.cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
       controls.dispose();

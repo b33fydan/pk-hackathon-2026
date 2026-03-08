@@ -1,5 +1,5 @@
 export const COLORS = {
-  grass: ['#55d86d', '#4fd56a', '#48cf65'],
+  grass: ['#4f8144', '#456f3c', '#365a2f'],
   water: '#3b82f6',
   wood: '#92400e',
   stone: '#9ca3af',
