@@ -4,6 +4,7 @@ import OnboardingFlow from '../components/ui/OnboardingFlow';
 import SceneViewport from '../components/scene/SceneViewport';
 import KingdomPanel from '../components/ui/KingdomPanel';
 import { useKingdomStore } from '../store/kingdomStore';
+import { KINGDOM_LAYOUT } from '../utils/constants';
 
 export default function KingdomPage() {
   const reopenOnboarding = useKingdomStore((state) => state.reopenOnboarding);
@@ -26,11 +27,20 @@ export default function KingdomPage() {
         paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
       }}
     >
-      <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-7xl flex-col gap-4 lg:min-h-[calc(100vh-3rem)] lg:flex-row">
-        <section className="order-2 lg:order-1 lg:w-2/5">
+      <div
+        className="kingdom-shell mx-auto flex min-h-[calc(100vh-1.5rem)] w-full flex-col gap-4"
+        style={{
+          '--kingdom-shell-max-width': KINGDOM_LAYOUT.shellMaxWidth,
+          '--kingdom-shell-wide-max-width': KINGDOM_LAYOUT.shellWideMaxWidth,
+          '--kingdom-panel-max-width': KINGDOM_LAYOUT.panelMaxWidth,
+          '--kingdom-panel-basis': KINGDOM_LAYOUT.desktopPanelBasis,
+          '--kingdom-panel-wide-basis': KINGDOM_LAYOUT.widePanelBasis,
+        }}
+      >
+        <section className="kingdom-panel-column order-2 lg:order-1">
           <KingdomPanel />
         </section>
-        <section className="order-1 lg:order-2 lg:w-3/5">
+        <section className="kingdom-scene-column order-1 lg:order-2">
           <SceneViewport />
         </section>
       </div>

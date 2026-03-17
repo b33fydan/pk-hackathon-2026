@@ -21,8 +21,15 @@ export const COLORS = {
 };
 
 export const SCENE_BACKGROUND = '#112615';
-export const ISLAND_GRID_SIZE = 8;
-export const WATER_SIZE = 14;
+export const ISLAND_GRID_SIZE = 9;
+export const WATER_SIZE = 15;
+export const KINGDOM_LAYOUT = {
+  shellMaxWidth: '110rem',
+  shellWideMaxWidth: '118rem',
+  panelMaxWidth: '34rem',
+  desktopPanelBasis: 'clamp(22.5rem, 35vw, 32rem)',
+  widePanelBasis: 'clamp(23rem, 32vw, 34rem)',
+};
 export const DAY_COUNT_OPTIONS = Array.from({ length: 28 }, (_, index) => index + 1);
 export const KINGDOM_BANNER_OPTIONS = [
   { key: 'red', label: 'Red', color: '#ef4444', darkColor: '#7f1d1d' },
@@ -37,15 +44,98 @@ export const KINGDOM_BANNER_MAP = Object.fromEntries(
 );
 
 export const CAMERA_CONFIG = {
-  fov: 46,
-  position: [10.9, 9.7, 10.6],
-  target: [0, 0.1, 0],
-  minDistance: 6.4,
-  maxDistance: 24,
+  fov: 45,
+  minDistance: 6.8,
+  maxDistance: 28,
   minAzimuthAngle: -Infinity,
   maxAzimuthAngle: Infinity,
   minPolarAngle: Math.PI / 4.2,
   maxPolarAngle: Math.PI / 2.3,
+  presets: {
+    compact: {
+      position: [10.8, 9.6, 10.7],
+      target: [0, 0.18, 0.24],
+    },
+    desktop: {
+      position: [11.7, 10.25, 11.55],
+      target: [0, 0.12, 0.1],
+    },
+    wide: {
+      position: [12.2, 10.6, 12.15],
+      target: [0, 0.12, 0.08],
+    },
+  },
+};
+
+export function getCameraConfigForWidth(width) {
+  const presetKey = width >= 1600 ? 'wide' : width >= 1280 ? 'desktop' : 'compact';
+  const preset = CAMERA_CONFIG.presets[presetKey];
+
+  return {
+    fov: CAMERA_CONFIG.fov,
+    minDistance: CAMERA_CONFIG.minDistance,
+    maxDistance: CAMERA_CONFIG.maxDistance,
+    minAzimuthAngle: CAMERA_CONFIG.minAzimuthAngle,
+    maxAzimuthAngle: CAMERA_CONFIG.maxAzimuthAngle,
+    minPolarAngle: CAMERA_CONFIG.minPolarAngle,
+    maxPolarAngle: CAMERA_CONFIG.maxPolarAngle,
+    ...preset,
+  };
+}
+
+export const ISLAND_SCENE_CONFIG = {
+  worldScale: 1.16,
+  terrain: {
+    topTileSize: 0.9,
+    topTileHeightScale: 0.54,
+    topTileYOffset: -0.455,
+    underTileSize: 0.94,
+    underTileYOffset: -1.28,
+    waveA: 0.02,
+    waveB: 0.014,
+    checker: 0.002,
+    plateauSize: ISLAND_GRID_SIZE - 0.18,
+    plateauHeight: 0.82,
+    plateauY: -0.63,
+  },
+  visualScale: {
+    prop: 0.6,
+    character: 0.6,
+    monster: 0.7,
+    building: 0.585,
+  },
+  groundOffsets: {
+    hero: -0.18,
+    monster: -0.12,
+    structure: -0.2,
+  },
+  placement: {
+    spread: 1.15,
+    heroCenterX: 0,
+    heroCenterZ: 2.05,
+    treasury: [1.15, 1.3],
+    banner: [-1.38, 3.08],
+    monsterArc: {
+      startAngle: Math.PI * 0.76,
+      endAngle: Math.PI * 0.24,
+      xRadius: 3.1,
+      zRadius: 1.7,
+      zOffset: -0.12,
+    },
+    baseDecor: {
+      trees: [
+        [-3.1, -2.7, 'pine'],
+        [2.9, -2.1, 'round'],
+      ],
+      rocks: [3.15, 2.45, 4],
+    },
+  },
+};
+
+export const DEFAULT_HERO_POSITION = {
+  x: ISLAND_SCENE_CONFIG.placement.heroCenterX,
+  y: 0,
+  z: ISLAND_SCENE_CONFIG.placement.heroCenterZ,
 };
 
 export const BILL_CATEGORY_OPTIONS = [

@@ -1,12 +1,9 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import {
-  getHeroTierForLevel,
-  getIslandStageForMonths,
-  getLevelForXp,
-} from '../utils/progression';
+import { DEFAULT_HERO_POSITION } from '../utils/constants';
+import { getHeroTierForLevel, getIslandStageForMonths, getLevelForXp } from '../utils/progression';
 
-const CENTER_HERO_POSITION = { x: 0, y: 0, z: 1.8 };
+const CENTER_HERO_POSITION = DEFAULT_HERO_POSITION;
 
 function createBattleState(runId = 0) {
   return {
@@ -51,7 +48,7 @@ export const useGameStore = create(
 
         set({
           heroVisible: true,
-          heroPosition: { x: 0, y: 4.8, z: 1.8 },
+          heroPosition: { ...CENTER_HERO_POSITION, y: 4.8 },
           displayXp: state.xp,
           battle: {
             ...createBattleState(state.battle.runId + 1),

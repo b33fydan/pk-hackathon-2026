@@ -223,7 +223,7 @@ export default function SceneViewport() {
   };
 
   return (
-    <div className="relative h-[72vh] min-h-[520px] max-h-[760px] overflow-hidden rounded-[28px] border border-emerald-500/20 bg-[#112615] shadow-[0_30px_100px_rgba(0,0,0,0.35)] sm:h-[68vh] lg:h-full lg:min-h-[720px] lg:max-h-none">
+    <div className="kingdom-scene-viewport relative overflow-hidden rounded-[28px] border border-emerald-500/20 bg-[#112615] shadow-[0_30px_100px_rgba(0,0,0,0.35)]">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 grid grid-cols-2 gap-2 p-3 sm:gap-3 sm:p-5 xl:grid-cols-3">
         <div className="min-w-0 rounded-2xl border border-white/10 bg-black/30 px-3 py-2.5 backdrop-blur-sm sm:px-4 sm:py-3">
           <p className="font-['Press_Start_2P'] text-[0.52rem] uppercase tracking-[0.25em] text-amber-200">
@@ -266,7 +266,7 @@ export default function SceneViewport() {
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-3 sm:bottom-5 sm:px-4 lg:bottom-6">
-        <div className="pointer-events-auto w-full max-w-[22rem] rounded-[28px] border border-white/10 bg-black/35 px-3 py-3 shadow-[0_24px_60px_rgba(0,0,0,0.35)] backdrop-blur-sm sm:max-w-[28rem] sm:px-4 lg:max-w-[24rem]">
+        <div className="pointer-events-auto w-full max-w-[22rem] rounded-[28px] border border-white/10 bg-black/35 px-3 py-3 shadow-[0_24px_60px_rgba(0,0,0,0.35)] backdrop-blur-sm sm:max-w-[28rem] sm:px-4 lg:max-w-[26rem]">
           <div className="grid grid-cols-2 gap-2.5">
             <button
               type="button"

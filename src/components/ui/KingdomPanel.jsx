@@ -99,7 +99,7 @@ export default function KingdomPanel() {
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-[28px] border border-emerald-500/20 bg-slate-950/85 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur sm:p-6">
+    <div className="flex h-full flex-col overflow-y-auto overflow-x-hidden rounded-[28px] border border-emerald-500/20 bg-slate-950/85 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur sm:p-6">
       <div className="space-y-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-3">

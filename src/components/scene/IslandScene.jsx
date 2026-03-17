@@ -3,9 +3,10 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
   BILL_CATEGORY_MAP,
-  CAMERA_CONFIG,
   COLORS,
+  getCameraConfigForWidth,
   ISLAND_GRID_SIZE,
+  ISLAND_SCENE_CONFIG,
   KINGDOM_BANNER_MAP,
   SCENE_BACKGROUND,
   WATER_SIZE,
@@ -35,26 +36,33 @@ import {
 } from '../../utils/voxelBuilder';
 import { soundManager } from '../../utils/soundManager';
 
-const HERO_GROUND_OFFSET = -0.18;
-const MONSTER_GROUND_OFFSET = -0.1;
-const STRUCTURE_GROUND_OFFSET = -0.18;
-const HERO_CENTER = new THREE.Vector3(0, HERO_GROUND_OFFSET, 1.8);
-const WORLD_SCALE = 1.2;
-const TOP_TERRAIN_TILE_SIZE = 0.9;
-const TOP_TERRAIN_TILE_HEIGHT_SCALE = 0.54;
-const TOP_TERRAIN_Y_OFFSET = -0.455;
-const UNDER_TERRAIN_TILE_SIZE = 0.92;
-const UNDER_TERRAIN_Y_OFFSET = -1.26;
-const TERRAIN_WAVE_A = 0.021;
-const TERRAIN_WAVE_B = 0.015;
-const TERRAIN_CHECKER = 0.002;
-const LANDSCAPE_PLATEAU_SIZE = ISLAND_GRID_SIZE - 0.1;
-const LANDSCAPE_PLATEAU_HEIGHT = 0.78;
-const LANDSCAPE_PLATEAU_Y = -0.61;
-const PROP_VISUAL_SCALE = 0.67;
-const MONSTER_VISUAL_SCALE = 0.78;
-const BUILDING_VISUAL_SCALE = 0.65;
+const HERO_GROUND_OFFSET = ISLAND_SCENE_CONFIG.groundOffsets.hero;
+const MONSTER_GROUND_OFFSET = ISLAND_SCENE_CONFIG.groundOffsets.monster;
+const STRUCTURE_GROUND_OFFSET = ISLAND_SCENE_CONFIG.groundOffsets.structure;
+const HERO_CENTER = new THREE.Vector3(
+  ISLAND_SCENE_CONFIG.placement.heroCenterX,
+  HERO_GROUND_OFFSET,
+  ISLAND_SCENE_CONFIG.placement.heroCenterZ,
+);
+const WORLD_SCALE = ISLAND_SCENE_CONFIG.worldScale;
+const TOP_TERRAIN_TILE_SIZE = ISLAND_SCENE_CONFIG.terrain.topTileSize;
+const TOP_TERRAIN_TILE_HEIGHT_SCALE = ISLAND_SCENE_CONFIG.terrain.topTileHeightScale;
+const TOP_TERRAIN_Y_OFFSET = ISLAND_SCENE_CONFIG.terrain.topTileYOffset;
+const UNDER_TERRAIN_TILE_SIZE = ISLAND_SCENE_CONFIG.terrain.underTileSize;
+const UNDER_TERRAIN_Y_OFFSET = ISLAND_SCENE_CONFIG.terrain.underTileYOffset;
+const TERRAIN_WAVE_A = ISLAND_SCENE_CONFIG.terrain.waveA;
+const TERRAIN_WAVE_B = ISLAND_SCENE_CONFIG.terrain.waveB;
+const TERRAIN_CHECKER = ISLAND_SCENE_CONFIG.terrain.checker;
+const LANDSCAPE_PLATEAU_SIZE = ISLAND_SCENE_CONFIG.terrain.plateauSize;
+const LANDSCAPE_PLATEAU_HEIGHT = ISLAND_SCENE_CONFIG.terrain.plateauHeight;
+const LANDSCAPE_PLATEAU_Y = ISLAND_SCENE_CONFIG.terrain.plateauY;
+const PROP_VISUAL_SCALE = ISLAND_SCENE_CONFIG.visualScale.prop;
+const CHARACTER_VISUAL_SCALE = ISLAND_SCENE_CONFIG.visualScale.character;
+const MONSTER_VISUAL_SCALE = ISLAND_SCENE_CONFIG.visualScale.monster;
+const BUILDING_VISUAL_SCALE = ISLAND_SCENE_CONFIG.visualScale.building;
+const SCENE_POSITION_SPREAD = ISLAND_SCENE_CONFIG.placement.spread;
 const LOCAL_PROP_SCALE = PROP_VISUAL_SCALE / WORLD_SCALE;
+const LOCAL_CHARACTER_SCALE = CHARACTER_VISUAL_SCALE / WORLD_SCALE;
 const LOCAL_MONSTER_SCALE = MONSTER_VISUAL_SCALE / WORLD_SCALE;
 const LOCAL_BUILDING_SCALE = BUILDING_VISUAL_SCALE / WORLD_SCALE;
 
@@ -70,6 +78,10 @@ function easeOutBack(value) {
   const c1 = 1.70158;
   const c3 = c1 + 1;
   return 1 + c3 * (value - 1) ** 3 + c1 * (value - 1) ** 2;
+}
+
+function spreadScenePosition(x, z, factor = SCENE_POSITION_SPREAD) {
+  return [round(x * factor), round(z * factor)];
 }
 
 function getIslandHeight(x, z) {
@@ -151,7 +163,11 @@ function createGoldPile(amount) {
     pile.add(createVoxel(x, y, z, '#fbbf24', 0.34));
   }
 
-  pile.position.set(0.95, 0, 1.1);
+  pile.position.set(
+    ISLAND_SCENE_CONFIG.placement.treasury[0],
+    0,
+    ISLAND_SCENE_CONFIG.placement.treasury[1],
+  );
   return pile;
 }
 
@@ -309,10 +325,7 @@ function getMonsterSize(amount) {
 }
 
 function getMonsterLayout(bills) {
-  const startAngle = Math.PI * 0.72;
-  const endAngle = Math.PI * 0.28;
-  const xRadius = 2.45;
-  const zRadius = 1.25;
+  const { startAngle, endAngle, xRadius, zRadius, zOffset } = ISLAND_SCENE_CONFIG.placement.monsterArc;
 
   return bills.map((bill, index) => {
     const ratio = bills.length === 1 ? 0.5 : index / (bills.length - 1);
@@ -323,7 +336,7 @@ function getMonsterLayout(bills) {
       position: new THREE.Vector3(
         Math.cos(angle) * xRadius,
         MONSTER_GROUND_OFFSET,
-        Math.sin(angle) * zRadius - 0.08,
+        Math.sin(angle) * zRadius + zOffset,
       ),
     };
   });
@@ -365,44 +378,66 @@ function createStageGroup(stage) {
   const group = new THREE.Group();
 
   if (stage === 1) {
-    group.add(scaleSceneProp(createTree(-3.1, -0.3, 'oak')));
-    group.add(scaleSceneProp(createTree(-2.4, 2.1, 'pine')));
-    group.add(scaleSceneProp(createFlowerPatch(-1.4, -2.3, ['#f472b6', '#fde047', '#60a5fa'])));
+    const [treeA1, treeA2] = spreadScenePosition(-3.1, -0.3);
+    const [treeB1, treeB2] = spreadScenePosition(-2.4, 2.1);
+    const [flowerX, flowerZ] = spreadScenePosition(-1.4, -2.3);
+    group.add(scaleSceneProp(createTree(treeA1, treeA2, 'oak')));
+    group.add(scaleSceneProp(createTree(treeB1, treeB2, 'pine')));
+    group.add(scaleSceneProp(createFlowerPatch(flowerX, flowerZ, ['#f472b6', '#fde047', '#60a5fa'])));
   }
 
   if (stage === 2) {
-    group.add(scaleSceneBuilding(createBuilding(-1.65, -1.15, 2, 1, 2, '#d6c39c')));
-    group.add(scaleSceneProp(createPathSegment(-0.3, -0.3)));
-    group.add(scaleSceneProp(createPathSegment(-0.65, -0.62)));
-    group.add(scaleSceneProp(createPathSegment(-1, -0.92)));
+    const [buildingX, buildingZ] = spreadScenePosition(-1.65, -1.15);
+    const [pathAX, pathAZ] = spreadScenePosition(-0.3, -0.3);
+    const [pathBX, pathBZ] = spreadScenePosition(-0.65, -0.62);
+    const [pathCX, pathCZ] = spreadScenePosition(-1, -0.92);
+    group.add(scaleSceneBuilding(createBuilding(buildingX, buildingZ, 2, 1, 2, '#d6c39c')));
+    group.add(scaleSceneProp(createPathSegment(pathAX, pathAZ)));
+    group.add(scaleSceneProp(createPathSegment(pathBX, pathBZ)));
+    group.add(scaleSceneProp(createPathSegment(pathCX, pathCZ)));
   }
 
   if (stage === 3) {
-    group.add(scaleSceneBuilding(createBuilding(1.85, -1.05, 2, 2, 2, '#ddd6fe')));
-    group.add(scaleSceneProp(createWell(0.15, -1.9)));
-    group.add(scaleSceneProp(createFlowerPatch(2.7, -0.4, ['#fb7185', '#facc15', '#86efac'])));
+    const [buildingX, buildingZ] = spreadScenePosition(1.85, -1.05);
+    const [wellX, wellZ] = spreadScenePosition(0.15, -1.9);
+    const [flowerX, flowerZ] = spreadScenePosition(2.7, -0.4);
+    group.add(scaleSceneBuilding(createBuilding(buildingX, buildingZ, 2, 2, 2, '#ddd6fe')));
+    group.add(scaleSceneProp(createWell(wellX, wellZ)));
+    group.add(scaleSceneProp(createFlowerPatch(flowerX, flowerZ, ['#fb7185', '#facc15', '#86efac'])));
   }
 
   if (stage === 4) {
-    group.add(scaleSceneBuilding(createBuilding(-2.45, 1.6, 2, 2, 2, '#94a3b8')));
-    group.add(scaleSceneProp(createFenceLine(-3.15, 0.8, 4, true)));
-    group.add(scaleSceneProp(createFenceLine(-3.15, 0.8, 4, false)));
-    group.add(scaleSceneProp(createPond(1.7, 1.8)));
+    const [buildingX, buildingZ] = spreadScenePosition(-2.45, 1.6);
+    const [fenceX, fenceZ] = spreadScenePosition(-3.15, 0.8);
+    const [pondX, pondZ] = spreadScenePosition(1.7, 1.8);
+    group.add(scaleSceneBuilding(createBuilding(buildingX, buildingZ, 2, 2, 2, '#94a3b8')));
+    group.add(scaleSceneProp(createFenceLine(fenceX, fenceZ, 4, true)));
+    group.add(scaleSceneProp(createFenceLine(fenceX, fenceZ, 4, false)));
+    group.add(scaleSceneProp(createPond(pondX, pondZ)));
   }
 
   if (stage === 5) {
-    group.add(scaleSceneBuilding(createBuilding(0.05, -2.7, 2, 4, 2, '#cbd5e1')));
-    group.add(scaleSceneBuilding(createBuilding(1.65, -2.55, 1, 2, 1, '#94a3b8')));
-    group.add(scaleSceneProp(createBridge(-0.6, -2.9)));
-    group.add(scaleSceneProp(createFlag(1.55, -3.05, '#fbbf24')));
+    const [buildingAX, buildingAZ] = spreadScenePosition(0.05, -2.7);
+    const [buildingBX, buildingBZ] = spreadScenePosition(1.65, -2.55);
+    const [bridgeX, bridgeZ] = spreadScenePosition(-0.6, -2.9);
+    const [flagX, flagZ] = spreadScenePosition(1.55, -3.05);
+    group.add(scaleSceneBuilding(createBuilding(buildingAX, buildingAZ, 2, 4, 2, '#cbd5e1')));
+    group.add(scaleSceneBuilding(createBuilding(buildingBX, buildingBZ, 1, 2, 1, '#94a3b8')));
+    group.add(scaleSceneProp(createBridge(bridgeX, bridgeZ)));
+    group.add(scaleSceneProp(createFlag(flagX, flagZ, '#fbbf24')));
   }
 
   if (stage === 6) {
-    group.add(scaleSceneBuilding(createBuilding(2.45, 2.2, 2, 3, 2, '#e2e8f0')));
-    group.add(scaleSceneProp(createFountain(-0.95, 2.35)));
-    group.add(scaleSceneProp(createCloud(-1.8, -0.5)));
-    group.add(scaleSceneProp(createCloud(2.1, 1.1)));
-    group.add(scaleSceneProp(createFlag(2.9, 2.6, '#38bdf8')));
+    const [buildingX, buildingZ] = spreadScenePosition(2.45, 2.2);
+    const [fountainX, fountainZ] = spreadScenePosition(-0.95, 2.35);
+    const [cloudAX, cloudAZ] = spreadScenePosition(-1.8, -0.5);
+    const [cloudBX, cloudBZ] = spreadScenePosition(2.1, 1.1);
+    const [flagX, flagZ] = spreadScenePosition(2.9, 2.6);
+    group.add(scaleSceneBuilding(createBuilding(buildingX, buildingZ, 2, 3, 2, '#e2e8f0')));
+    group.add(scaleSceneProp(createFountain(fountainX, fountainZ)));
+    group.add(scaleSceneProp(createCloud(cloudAX, cloudAZ)));
+    group.add(scaleSceneProp(createCloud(cloudBX, cloudBZ)));
+    group.add(scaleSceneProp(createFlag(flagX, flagZ, '#38bdf8')));
   }
 
   return group;
@@ -499,9 +534,13 @@ function createIslandBase() {
   island.add(water);
   island.add(createLandscapePlateau());
 
-  island.add(scaleSceneProp(createTree(-2.6, -2.4, 'pine')));
-  island.add(scaleSceneProp(createTree(2.5, -1.9, 'round')));
-  island.add(scaleSceneProp(createRocks(2.6, 2.1, 4)));
+  ISLAND_SCENE_CONFIG.placement.baseDecor.trees.forEach(([x, z, style]) => {
+    const [spreadX, spreadZ] = spreadScenePosition(x, z);
+    island.add(scaleSceneProp(createTree(spreadX, spreadZ, style)));
+  });
+  const [rocksX, rocksZ, rocksCount] = ISLAND_SCENE_CONFIG.placement.baseDecor.rocks;
+  const [spreadRocksX, spreadRocksZ] = spreadScenePosition(rocksX, rocksZ);
+  island.add(scaleSceneProp(createRocks(spreadRocksX, spreadRocksZ, rocksCount)));
 
   return {
     island,
@@ -510,8 +549,11 @@ function createIslandBase() {
       worldScale: WORLD_SCALE,
       terrainTileSize: round(TOP_TERRAIN_TILE_SIZE * WORLD_SCALE),
       propVisualScale: round(PROP_VISUAL_SCALE),
+      characterVisualScale: round(CHARACTER_VISUAL_SCALE),
+      monsterVisualScale: round(MONSTER_VISUAL_SCALE),
       buildingVisualScale: round(BUILDING_VISUAL_SCALE),
       terrainTileHeightScale: round(TOP_TERRAIN_TILE_HEIGHT_SCALE),
+      placementSpread: round(SCENE_POSITION_SPREAD),
       heroGroundOffset: round(HERO_GROUND_OFFSET),
       monsterGroundOffset: round(MONSTER_GROUND_OFFSET),
       terrainVoxels: voxelCount,
@@ -692,7 +734,7 @@ function rebuildTreasury(runtime, state) {
 
 function rebuildIdentity(runtime, state) {
   clearGroup(runtime.roots.identity);
-  runtime.roots.identity.add(scaleSceneProp(createFlag(-1.2, 2.7, state.bannerColorHex)));
+  runtime.roots.identity.add(scaleSceneProp(createFlag(...ISLAND_SCENE_CONFIG.placement.banner, state.bannerColorHex)));
 }
 
 function rebuildMonsters(runtime, bills) {
@@ -721,7 +763,7 @@ function rebuildHero(runtime, state) {
   }
 
   const hero = createHeroForTier(state.armorTier);
-  hero.scale.setScalar(LOCAL_PROP_SCALE);
+  hero.scale.setScalar(LOCAL_CHARACTER_SCALE);
   hero.position.set(state.heroPosition.x, state.heroPosition.y + HERO_GROUND_OFFSET, state.heroPosition.z);
   runtime.roots.hero.add(hero);
   runtime.heroGroup = hero;
@@ -1343,7 +1385,10 @@ export default function IslandScene() {
     runtime.destroyed = false;
 
     let renderer;
-    const compactViewport = (container.clientWidth || window.innerWidth) < 960;
+    const viewportWidth = window.innerWidth || container.clientWidth;
+    const sceneWidth = container.clientWidth || viewportWidth;
+    const compactViewport = sceneWidth < 960;
+    const cameraConfig = getCameraConfigForWidth(viewportWidth);
     const pixelRatioCap = compactViewport ? 1 : 1.2;
     const shadowMapSize = compactViewport ? 384 : 512;
 
@@ -1366,21 +1411,21 @@ export default function IslandScene() {
     container.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(SCENE_BACKGROUND, 18, 32);
+    scene.fog = new THREE.Fog(SCENE_BACKGROUND, 20, 36);
 
-    const camera = new THREE.PerspectiveCamera(CAMERA_CONFIG.fov, 1, 0.1, 120);
-    camera.position.set(...CAMERA_CONFIG.position);
+    const camera = new THREE.PerspectiveCamera(cameraConfig.fov, 1, 0.1, 120);
+    camera.position.set(...cameraConfig.position);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.enablePan = false;
-    controls.target.set(...CAMERA_CONFIG.target);
-    controls.minDistance = CAMERA_CONFIG.minDistance;
-    controls.maxDistance = CAMERA_CONFIG.maxDistance;
-    controls.minAzimuthAngle = CAMERA_CONFIG.minAzimuthAngle;
-    controls.maxAzimuthAngle = CAMERA_CONFIG.maxAzimuthAngle;
-    controls.minPolarAngle = CAMERA_CONFIG.minPolarAngle;
-    controls.maxPolarAngle = CAMERA_CONFIG.maxPolarAngle;
+    controls.target.set(...cameraConfig.target);
+    controls.minDistance = cameraConfig.minDistance;
+    controls.maxDistance = cameraConfig.maxDistance;
+    controls.minAzimuthAngle = cameraConfig.minAzimuthAngle;
+    controls.maxAzimuthAngle = cameraConfig.maxAzimuthAngle;
+    controls.minPolarAngle = cameraConfig.minPolarAngle;
+    controls.maxPolarAngle = cameraConfig.maxPolarAngle;
     controls.update();
 
     scene.add(new THREE.AmbientLight('#c7f9cc', 1.8));
@@ -1389,10 +1434,10 @@ export default function IslandScene() {
     sun.position.set(9, 14, 8);
     sun.castShadow = true;
     sun.shadow.mapSize.set(shadowMapSize, shadowMapSize);
-    sun.shadow.camera.left = -10;
-    sun.shadow.camera.right = 10;
-    sun.shadow.camera.top = 10;
-    sun.shadow.camera.bottom = -10;
+    sun.shadow.camera.left = -12;
+    sun.shadow.camera.right = 12;
+    sun.shadow.camera.top = 12;
+    sun.shadow.camera.bottom = -12;
     scene.add(sun);
 
     const rim = new THREE.DirectionalLight('#93c5fd', 1.1);
