@@ -101,12 +101,12 @@ export const ISLAND_SCENE_CONFIG = {
   visualScale: {
     prop: 0.6,
     character: 0.6,
-    monster: 1.08,
+    monster: 0.54,
     building: 0.585,
   },
   groundOffsets: {
     hero: -0.18,
-    monster: 0.18,
+    monster: 0.09,
     structure: -0.2,
   },
   placement: {
