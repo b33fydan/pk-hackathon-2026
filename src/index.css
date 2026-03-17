@@ -53,23 +53,27 @@ select {
     flex-direction: row;
     align-items: stretch;
     gap: clamp(1rem, 1.8vw, 1.75rem);
-    min-height: calc(100vh - 3rem);
+    height: calc(100vh - 3rem);
+    min-height: 0;
+    max-height: calc(100vh - 3rem);
   }
 
   .kingdom-panel-column {
     flex: 0 1 var(--kingdom-panel-basis, clamp(22.5rem, 35vw, 32rem));
     max-width: var(--kingdom-panel-max-width, 34rem);
     min-width: min(100%, 22.5rem);
+    min-height: 0;
   }
 
   .kingdom-scene-column {
     flex: 1 1 0;
     min-width: 0;
+    min-height: 0;
   }
 
   .kingdom-scene-viewport {
     height: 100%;
-    min-height: 780px;
+    min-height: 0;
     max-height: none;
   }
 }

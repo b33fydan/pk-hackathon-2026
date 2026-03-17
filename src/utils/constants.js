@@ -101,12 +101,12 @@ export const ISLAND_SCENE_CONFIG = {
   visualScale: {
     prop: 0.6,
     character: 0.6,
-    monster: 0.7,
+    monster: 1.08,
     building: 0.585,
   },
   groundOffsets: {
     hero: -0.18,
-    monster: -0.12,
+    monster: 0.18,
     structure: -0.2,
   },
   placement: {
@@ -116,11 +116,11 @@ export const ISLAND_SCENE_CONFIG = {
     treasury: [1.15, 1.3],
     banner: [-1.38, 3.08],
     monsterArc: {
-      startAngle: Math.PI * 0.76,
-      endAngle: Math.PI * 0.24,
-      xRadius: 3.1,
-      zRadius: 1.7,
-      zOffset: -0.12,
+      startAngle: Math.PI * 0.72,
+      endAngle: Math.PI * 0.28,
+      xRadius: 2.75,
+      zRadius: 1.3,
+      zOffset: 0.15,
     },
     baseDecor: {
       trees: [

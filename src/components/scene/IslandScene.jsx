@@ -264,6 +264,40 @@ function createFountain(x, z) {
   return group;
 }
 
+function createMonsterSigil(color) {
+  const group = new THREE.Group();
+  const sigilMaterial = getSharedMaterial(color, {
+    emissive: new THREE.Color(color),
+    emissiveIntensity: 0.58,
+    roughness: 0.36,
+    metalness: 0.12,
+  });
+  const core = new THREE.Mesh(getSharedBoxGeometry(0.46, 0.46, 0.46), sigilMaterial);
+  core.position.set(0, 2.62, 0);
+  core.castShadow = false;
+  core.receiveShadow = false;
+  const sparkLeft = new THREE.Mesh(getSharedBoxGeometry(0.18, 0.18, 0.18), sigilMaterial);
+  sparkLeft.position.set(-0.38, 2.3, 0);
+  sparkLeft.castShadow = false;
+  sparkLeft.receiveShadow = false;
+  const sparkRight = sparkLeft.clone();
+  sparkRight.position.x = 0.38;
+  const beacon = new THREE.Mesh(
+    getSharedBoxGeometry(0.6, 0.12, 0.6),
+    getSharedMaterial('#0b1120', {
+      emissive: new THREE.Color(color),
+      emissiveIntensity: 0.18,
+      roughness: 0.5,
+      metalness: 0.08,
+    }),
+  );
+  beacon.position.set(0, 0.12, 0);
+  beacon.castShadow = false;
+  beacon.receiveShadow = false;
+  group.add(core, sparkLeft, sparkRight, beacon);
+  return group;
+}
+
 function createLandscapePlateau() {
   const topMaterial = getSharedMaterial(COLORS.grass[1], {
     roughness: 0.96,
@@ -608,6 +642,23 @@ function updatePerformanceEstimate(runtime, deltaMs) {
   runtime.performance.fpsEstimate = round(1000 / Math.max(avgFrameMs, 1));
 }
 
+function projectWorldPoint(runtime, point) {
+  if (!runtime.camera || !runtime.renderer) {
+    return null;
+  }
+
+  const projected = point.clone().project(runtime.camera);
+
+  return {
+    ndc: projected.toArray().map(round),
+    screen: [
+      round(((projected.x + 1) / 2) * runtime.renderer.domElement.width),
+      round(((1 - projected.y) / 2) * runtime.renderer.domElement.height),
+    ],
+    inFront: projected.z >= -1 && projected.z <= 1,
+  };
+}
+
 function collectSceneMetrics(runtime) {
   const scene = runtime.scene;
   const renderer = runtime.renderer;
@@ -651,6 +702,61 @@ function collectSceneMetrics(runtime) {
     instancedMeshCount,
     shadowCasterCount,
     pixelRatio: round(renderer.getPixelRatio()),
+    currentStage: runtime.currentStage,
+    rootChildCounts: {
+      treasury: runtime.roots.treasury?.children.length ?? 0,
+      identity: runtime.roots.identity?.children.length ?? 0,
+      growth: runtime.roots.growth?.children.length ?? 0,
+      monsters: runtime.roots.monsters?.children.length ?? 0,
+      hero: runtime.roots.hero?.children.length ?? 0,
+      particles: runtime.roots.particles?.children.length ?? 0,
+    },
+    rootTransforms: Object.fromEntries(
+      Object.entries(runtime.roots).map(([key, group]) => [
+        key,
+        group
+          ? {
+              visible: group.visible,
+              position: group.position.toArray().map(round),
+              scale: group.scale.toArray().map(round),
+            }
+          : null,
+      ]),
+    ),
+    growthScales: runtime.roots.growth?.children.map((child, index) => ({
+      index,
+      scale: child.scale.toArray().map(round),
+      position: child.position.toArray().map(round),
+    })) ?? [],
+    monsters: [...runtime.monsterEntries.entries()].map(([id, entry]) => ({
+      materialColor:
+        entry.group.children[0]?.children
+          ?.find((child) => 'material' in child && child.material)
+          ?.material?.color
+          ?.getHexString?.() ?? null,
+      id,
+      category: entry.bill.category,
+      amount: entry.bill.amount,
+      visible: entry.group.visible,
+      basePosition: entry.basePosition.toArray().map(round),
+      position: entry.group.position.toArray().map(round),
+      scale: entry.group.scale.toArray().map(round),
+      projected: projectWorldPoint(
+        runtime,
+        entry.group.getWorldPosition(new THREE.Vector3()).clone(),
+      ),
+      childCount: entry.group.children[0]?.children?.length ?? entry.group.children.length,
+      sampleChildPositions:
+        entry.group.children[0]?.children?.slice(0, 3).map((child) => child.position.toArray().map(round)) ?? [],
+      sampleChildBasePositions:
+        entry.group.children[0]?.children
+          ?.slice(0, 3)
+          .map((child) => child.userData?.basePosition?.toArray?.().map(round) ?? null) ?? [],
+      materialOpacity:
+        entry.group.children[0]?.children?.find((child) => 'material' in child && child.material)?.material?.opacity ?? null,
+      materialTransparent:
+        entry.group.children[0]?.children?.find((child) => 'material' in child && child.material)?.material?.transparent ?? null,
+    })),
   };
 }
 
@@ -669,6 +775,10 @@ function queueAnimation(runtime, config) {
       completed: false,
     });
   });
+}
+
+function setGroupYPosition(group, nextY, fallbackY = 0) {
+  group.position.y = Number.isFinite(nextY) ? nextY : fallbackY;
 }
 
 async function wait(runtime, duration) {
@@ -744,6 +854,7 @@ function rebuildMonsters(runtime, bills) {
   getMonsterLayout(bills).forEach(({ bill, position }) => {
     const color = BILL_CATEGORY_MAP[bill.category]?.color ?? BILL_CATEGORY_MAP.other.color;
     const monster = scaleSceneProp(createMonster(0, 0, color, getMonsterSize(bill.amount), bill.category), LOCAL_MONSTER_SCALE);
+    monster.add(createMonsterSigil(color));
     monster.position.copy(position);
     runtime.roots.monsters.add(monster);
     runtime.monsterEntries.set(bill.id, {
@@ -837,28 +948,31 @@ function setGroupOpacity(group, opacity) {
 
 function animateMonsterIdle(entry, index, elapsedMs) {
   const wave = Math.sin(elapsedMs * 0.003 + index * 0.7);
+  const safeWave = Number.isFinite(wave) ? wave : 0;
+  const absWave = Math.abs(safeWave);
   const meta = entry.group.userData.monsterMeta ?? {};
   const parts = meta.parts ?? {};
-  entry.group.position.y = entry.basePosition.y;
+  const baseY = Number.isFinite(entry.basePosition.y) ? entry.basePosition.y : MONSTER_GROUND_OFFSET;
+  setGroupYPosition(entry.group, baseY, MONSTER_GROUND_OFFSET);
   entry.group.rotation.y = 0;
 
   if (meta.category === 'housing') {
-    entry.group.position.y = entry.basePosition.y + Math.max(0, wave) * 0.012;
+    setGroupYPosition(entry.group, baseY + Math.max(0, safeWave) * 0.012, baseY);
     entry.group.rotation.y = Math.sin(elapsedMs * 0.0014 + index) * 0.04;
     if (parts.head?.userData.basePosition) {
-      parts.head.position.y = parts.head.userData.basePosition.y + Math.abs(wave) * 0.04;
+      parts.head.position.y = parts.head.userData.basePosition.y + absWave * 0.04;
     }
     if (parts.armLeft?.userData.baseRotation) {
-      parts.armLeft.rotation.z = parts.armLeft.userData.baseRotation.z + wave * 0.08;
+      parts.armLeft.rotation.z = parts.armLeft.userData.baseRotation.z + safeWave * 0.08;
     }
     if (parts.armRight?.userData.baseRotation) {
-      parts.armRight.rotation.z = parts.armRight.userData.baseRotation.z - wave * 0.08;
+      parts.armRight.rotation.z = parts.armRight.userData.baseRotation.z - safeWave * 0.08;
     }
     return;
   }
 
   if (meta.category === 'utilities') {
-    entry.group.position.y = entry.basePosition.y + wave * 0.035;
+    setGroupYPosition(entry.group, baseY + safeWave * 0.035, baseY);
     entry.group.rotation.y = Math.sin(elapsedMs * 0.0022 + index) * 0.14;
     ['sparkLeft', 'sparkRight', 'sparkTop'].forEach((key, sparkIndex) => {
       const spark = parts[key];
@@ -872,19 +986,19 @@ function animateMonsterIdle(entry, index, elapsedMs) {
   }
 
   if (meta.category === 'phone') {
-    entry.group.position.y = entry.basePosition.y + wave * 0.02;
+    setGroupYPosition(entry.group, baseY + safeWave * 0.02, baseY);
     entry.group.rotation.y = elapsedMs * 0.0012 + index * 0.45;
     if (parts.iris?.userData.basePosition) {
       parts.iris.position.x = parts.iris.userData.basePosition.x + Math.sin(elapsedMs * 0.0042) * 0.06;
     }
     if (parts.antennaTip?.userData.basePosition) {
-      parts.antennaTip.position.y = parts.antennaTip.userData.basePosition.y + Math.abs(wave) * 0.08;
+      parts.antennaTip.position.y = parts.antennaTip.userData.basePosition.y + absWave * 0.08;
     }
     return;
   }
 
   if (meta.category === 'transport') {
-    entry.group.position.y = entry.basePosition.y + Math.max(0, wave) * 0.015;
+    setGroupYPosition(entry.group, baseY + Math.max(0, safeWave) * 0.015, baseY);
     entry.group.rotation.y = Math.sin(elapsedMs * 0.0018 + index) * 0.08;
     (parts.legs ?? []).forEach((leg, legIndex) => {
       if (!leg?.userData.baseRotation) {
@@ -896,20 +1010,20 @@ function animateMonsterIdle(entry, index, elapsedMs) {
   }
 
   if (meta.category === 'food') {
-    entry.group.position.y = entry.basePosition.y + wave * 0.02;
+    setGroupYPosition(entry.group, baseY + safeWave * 0.02, baseY);
     if (parts.blob?.userData.baseScale) {
-      parts.blob.scale.y = parts.blob.userData.baseScale.y - Math.abs(wave) * 0.14;
-      parts.blob.scale.x = parts.blob.userData.baseScale.x + Math.abs(wave) * 0.08;
-      parts.blob.scale.z = parts.blob.userData.baseScale.z + Math.abs(wave) * 0.08;
+      parts.blob.scale.y = parts.blob.userData.baseScale.y - absWave * 0.14;
+      parts.blob.scale.x = parts.blob.userData.baseScale.x + absWave * 0.08;
+      parts.blob.scale.z = parts.blob.userData.baseScale.z + absWave * 0.08;
     }
     if (parts.blobTop?.userData.basePosition) {
-      parts.blobTop.position.y = parts.blobTop.userData.basePosition.y + Math.abs(wave) * 0.06;
+      parts.blobTop.position.y = parts.blobTop.userData.basePosition.y + absWave * 0.06;
     }
     return;
   }
 
   if (meta.category === 'insurance') {
-    entry.group.position.y = entry.basePosition.y + wave * 0.025;
+    setGroupYPosition(entry.group, baseY + safeWave * 0.025, baseY);
     entry.group.rotation.y = Math.sin(elapsedMs * 0.0015 + index) * 0.06;
     ['tailLeft', 'tailCenter', 'tailRight'].forEach((key, tailIndex) => {
       const tail = parts[key];
@@ -922,7 +1036,7 @@ function animateMonsterIdle(entry, index, elapsedMs) {
   }
 
   if (meta.category === 'entertainment') {
-    entry.group.position.y = entry.basePosition.y + Math.max(0, wave) * 0.035;
+    setGroupYPosition(entry.group, baseY + Math.max(0, safeWave) * 0.035, baseY);
     entry.group.rotation.y = Math.sin(elapsedMs * 0.0032 + index) * 0.24;
     ['hornLeft', 'hornRight'].forEach((key, hornIndex) => {
       const horn = parts[key];
@@ -934,7 +1048,7 @@ function animateMonsterIdle(entry, index, elapsedMs) {
     return;
   }
 
-  entry.group.position.y = entry.basePosition.y + wave * 0.025;
+  setGroupYPosition(entry.group, baseY + safeWave * 0.025, baseY);
   entry.group.rotation.y = Math.sin(elapsedMs * 0.0016 + index) * 0.1;
   ['earLeft', 'earRight'].forEach((key, earIndex) => {
     const ear = parts[key];
@@ -946,17 +1060,23 @@ function animateMonsterIdle(entry, index, elapsedMs) {
 }
 
 function updateIdleMotion(runtime, state, elapsedMs) {
+  const safeElapsedMs = Number.isFinite(elapsedMs) ? elapsedMs : 0;
+
   if (state.battleAnimating) {
     return;
   }
 
   if (state.heroVisible && runtime.heroGroup) {
-    runtime.heroGroup.position.y = state.heroPosition.y + HERO_GROUND_OFFSET + Math.sin(elapsedMs * 0.0032) * 0.018;
-    runtime.heroGroup.rotation.y = Math.sin(elapsedMs * 0.0018) * 0.08;
+    runtime.heroGroup.position.y =
+      state.heroPosition.y + HERO_GROUND_OFFSET + Math.sin(safeElapsedMs * 0.0032) * 0.018;
+    runtime.heroGroup.rotation.y = Math.sin(safeElapsedMs * 0.0018) * 0.08;
   }
 
-  runtime.monsterEntries.forEach((entry, index) => {
-    animateMonsterIdle(entry, index, elapsedMs);
+  let monsterIndex = 0;
+  runtime.monsterEntries.forEach((entry) => {
+    const currentIndex = monsterIndex;
+    monsterIndex += 1;
+    animateMonsterIdle(entry, currentIndex, safeElapsedMs);
   });
 }
 
@@ -1381,6 +1501,7 @@ export default function IslandScene() {
       return undefined;
     }
 
+    runtimeRef.current = createRuntimeState();
     const runtime = runtimeRef.current;
     runtime.destroyed = false;
 
@@ -1690,6 +1811,8 @@ export default function IslandScene() {
       if (window.get_scene_debug_info) {
         delete window.get_scene_debug_info;
       }
+
+      runtimeRef.current = createRuntimeState();
     };
   }, []);
 
