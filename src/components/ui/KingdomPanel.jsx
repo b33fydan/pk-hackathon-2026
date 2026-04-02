@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import {
-  useBudgetStore,
+  useFactStore,
   selectMonthsCompleted,
   selectSurplus,
   selectTotalBills,
-} from '../../store/budgetStore';
-import { useGameStore } from '../../store/gameStore';
-import { useKingdomStore } from '../../store/kingdomStore';
+} from '../../store/factStore';
+import { useWorldStore } from '../../store/worldStore';
+import { useProfileStore } from '../../store/profileStore';
 import { BILL_CATEGORY_MAP, BILL_CATEGORY_OPTIONS, DAY_COUNT_OPTIONS } from '../../utils/constants';
 import { soundManager } from '../../utils/soundManager';
 import { formatCurrency } from '../../utils/formatters';
@@ -22,21 +22,21 @@ function FieldLabel({ children }) {
 }
 
 export default function KingdomPanel() {
-  const income = useBudgetStore((state) => state.income);
-  const bills = useBudgetStore((state) => state.bills);
-  const currentMonth = useBudgetStore((state) => state.currentMonth);
-  const totalBills = useBudgetStore(selectTotalBills);
-  const surplus = useBudgetStore(selectSurplus);
-  const monthsCompleted = useBudgetStore(selectMonthsCompleted);
-  const setIncome = useBudgetStore((state) => state.setIncome);
-  const addBill = useBudgetStore((state) => state.addBill);
-  const removeBill = useBudgetStore((state) => state.removeBill);
+  const income = useFactStore((state) => state.income);
+  const bills = useFactStore((state) => state.bills);
+  const currentMonth = useFactStore((state) => state.currentMonth);
+  const totalBills = useFactStore(selectTotalBills);
+  const surplus = useFactStore(selectSurplus);
+  const monthsCompleted = useFactStore(selectMonthsCompleted);
+  const setIncome = useFactStore((state) => state.setIncome);
+  const addBill = useFactStore((state) => state.addBill);
+  const removeBill = useFactStore((state) => state.removeBill);
 
-  const armorTier = useGameStore((state) => state.armorTier);
-  const level = useGameStore((state) => state.level);
-  const battle = useGameStore((state) => state.battle);
-  const queuePayday = useGameStore((state) => state.queuePayday);
-  const kingdomName = useKingdomStore((state) => state.kingdomName);
+  const armorTier = useWorldStore((state) => state.armorTier);
+  const level = useWorldStore((state) => state.level);
+  const battle = useWorldStore((state) => state.battle);
+  const queuePayday = useWorldStore((state) => state.queuePayday);
+  const kingdomName = useProfileStore((state) => state.kingdomName);
 
   const [billName, setBillName] = useState('');
   const [billAmount, setBillAmount] = useState('');

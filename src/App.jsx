@@ -1,10 +1,15 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { runMigration } from './store/migration';
 
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const KingdomPage = lazy(() => import('./pages/KingdomPage'));
 
 export default function App() {
+  useEffect(() => {
+    runMigration();
+  }, []);
+
   return (
     <Suspense
       fallback={

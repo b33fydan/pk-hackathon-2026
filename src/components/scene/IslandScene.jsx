@@ -8,18 +8,19 @@ import {
   ISLAND_GRID_SIZE,
   ISLAND_SCENE_CONFIG,
   KINGDOM_BANNER_MAP,
+  LIGHTHOUSE_CONFIG,
   SCENE_BACKGROUND,
   WATER_SIZE,
 } from '../../utils/constants';
 import {
-  useBudgetStore,
+  useFactStore,
   selectMonthsCompleted,
   selectSurplus,
   selectTotalBills,
-} from '../../store/budgetStore';
-import { useGameStore } from '../../store/gameStore';
-import { useKingdomStore } from '../../store/kingdomStore';
-import { useSceneStore } from '../../store/sceneStore';
+} from '../../store/factStore';
+import { useWorldStore } from '../../store/worldStore';
+import { useProfileStore } from '../../store/profileStore';
+import { useUiStore } from '../../store/uiStore';
 import {
   getHeroTierByKey,
   getIslandStageForMonths,
@@ -27,6 +28,7 @@ import {
 import {
   createBuilding,
   createCharacter,
+  createLighthouse,
   createMonster,
   createRocks,
   createTree,
@@ -35,6 +37,7 @@ import {
   getSharedMaterial,
 } from '../../utils/voxelBuilder';
 import { soundManager } from '../../utils/soundManager';
+import { getTimeLighting } from '../../utils/weatherSystem';
 
 const HERO_GROUND_OFFSET = ISLAND_SCENE_CONFIG.groundOffsets.hero;
 const MONSTER_GROUND_OFFSET = ISLAND_SCENE_CONFIG.groundOffsets.monster;
@@ -575,6 +578,13 @@ function createIslandBase() {
   const [rocksX, rocksZ, rocksCount] = ISLAND_SCENE_CONFIG.placement.baseDecor.rocks;
   const [spreadRocksX, spreadRocksZ] = spreadScenePosition(rocksX, rocksZ);
   island.add(scaleSceneProp(createRocks(spreadRocksX, spreadRocksZ, rocksCount)));
+
+  // Lighthouse — always present, the kingdom's landmark (uses building scale, tallest structure)
+  const [lhX, lhZ] = spreadScenePosition(LIGHTHOUSE_CONFIG.position.x, LIGHTHOUSE_CONFIG.position.z);
+  const lighthouse = createLighthouse(lhX, lhZ, LIGHTHOUSE_CONFIG);
+  lighthouse.scale.setScalar(LOCAL_BUILDING_SCALE);
+  lighthouse.position.y = STRUCTURE_GROUND_OFFSET;
+  island.add(lighthouse);
 
   return {
     island,
@@ -1262,8 +1272,8 @@ async function runMonsterDefeatAnimation(runtime, entry) {
 }
 
 async function runPaydaySequence(runtime, sceneStateRef) {
-  const gameStore = useGameStore.getState();
-  const budgetStore = useBudgetStore.getState();
+  const gameStore = useWorldStore.getState();
+  const budgetStore = useFactStore.getState();
   const state = sceneStateRef.current;
   const pendingBills = [...state.activeBills];
 
@@ -1308,7 +1318,7 @@ async function runPaydaySequence(runtime, sceneStateRef) {
     });
     soundManager.play('victory');
     budgetStore.triggerPayday();
-    const monthsCompleted = useBudgetStore.getState().history.length;
+    const monthsCompleted = useFactStore.getState().history.length;
     gameStore.applyPaydayResults({
       xpGained: 0,
       billsSlain: 0,
@@ -1373,7 +1383,7 @@ async function runPaydaySequence(runtime, sceneStateRef) {
       text: `+$${bill.amount}`,
     });
     window.setTimeout(() => {
-      useGameStore.getState().dismissFloatingReward(rewardId);
+      useWorldStore.getState().dismissFloatingReward(rewardId);
     }, 1300);
 
     await wait(runtime, 160);
@@ -1401,7 +1411,7 @@ async function runPaydaySequence(runtime, sceneStateRef) {
   });
 
   budgetStore.triggerPayday();
-  const monthsCompleted = useBudgetStore.getState().history.length;
+  const monthsCompleted = useFactStore.getState().history.length;
   const result = gameStore.applyPaydayResults({
     xpGained: totalXpGained,
     billsSlain: pendingBills.length,
@@ -1438,20 +1448,20 @@ async function runPaydaySequence(runtime, sceneStateRef) {
 }
 
 export default function IslandScene() {
-  const income = useBudgetStore((state) => state.income);
-  const bills = useBudgetStore((state) => state.bills);
-  const totalBills = useBudgetStore(selectTotalBills);
-  const surplus = useBudgetStore(selectSurplus);
-  const monthsCompleted = useBudgetStore(selectMonthsCompleted);
+  const income = useFactStore((state) => state.income);
+  const bills = useFactStore((state) => state.bills);
+  const totalBills = useFactStore(selectTotalBills);
+  const surplus = useFactStore(selectSurplus);
+  const monthsCompleted = useFactStore(selectMonthsCompleted);
 
-  const heroVisible = useGameStore((state) => state.heroVisible);
-  const heroPosition = useGameStore((state) => state.heroPosition);
-  const armorTier = useGameStore((state) => state.armorTier);
-  const islandStage = useGameStore((state) => state.islandStage);
-  const battle = useGameStore((state) => state.battle);
-  const kingdomName = useKingdomStore((state) => state.kingdomName);
-  const bannerColor = useKingdomStore((state) => state.bannerColor);
-  const setCaptureScene = useSceneStore((state) => state.setCaptureScene);
+  const heroVisible = useWorldStore((state) => state.heroVisible);
+  const heroPosition = useWorldStore((state) => state.heroPosition);
+  const armorTier = useWorldStore((state) => state.armorTier);
+  const islandStage = useWorldStore((state) => state.islandStage);
+  const battle = useWorldStore((state) => state.battle);
+  const kingdomName = useProfileStore((state) => state.kingdomName);
+  const bannerColor = useProfileStore((state) => state.bannerColor);
+  const setCaptureScene = useUiStore((state) => state.setCaptureScene);
   const bannerColorHex = KINGDOM_BANNER_MAP[bannerColor]?.color ?? KINGDOM_BANNER_MAP.gold.color;
   const bannerDarkHex = KINGDOM_BANNER_MAP[bannerColor]?.darkColor ?? KINGDOM_BANNER_MAP.gold.darkColor;
 
@@ -1549,7 +1559,12 @@ export default function IslandScene() {
     controls.maxPolarAngle = cameraConfig.maxPolarAngle;
     controls.update();
 
-    scene.add(new THREE.AmbientLight('#c7f9cc', 1.8));
+    // Time-of-day lighting (updates every 60s)
+    const timeLighting = getTimeLighting();
+    scene.background = timeLighting.skyColor;
+
+    const ambientLight = new THREE.AmbientLight('#c7f9cc', 1.8);
+    scene.add(ambientLight);
 
     const sun = new THREE.DirectionalLight('#fff8d6', 2.8);
     sun.position.set(9, 14, 8);
@@ -1564,6 +1579,19 @@ export default function IslandScene() {
     const rim = new THREE.DirectionalLight('#93c5fd', 1.1);
     rim.position.set(-8, 6, -9);
     scene.add(rim);
+
+    // Apply initial time lighting
+    ambientLight.intensity = 1.2 + timeLighting.ambient;
+    sun.color.copy(timeLighting.sunColor);
+
+    // Update lighting every 60 seconds
+    const timeLightingInterval = setInterval(() => {
+      if (runtime.destroyed) return;
+      const tl = getTimeLighting();
+      scene.background.lerp(tl.skyColor, 0.3);
+      ambientLight.intensity = 1.2 + tl.ambient;
+      sun.color.lerp(tl.sunColor, 0.3);
+    }, 60000);
 
     const worldRoot = new THREE.Group();
     worldRoot.scale.setScalar(WORLD_SCALE);
@@ -1782,6 +1810,7 @@ export default function IslandScene() {
 
     return () => {
       runtime.destroyed = true;
+      clearInterval(timeLightingInterval);
       hydrateSyncTimers.forEach((timerId) => window.clearTimeout(timerId));
       window.cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();

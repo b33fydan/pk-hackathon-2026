@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useBudgetStore } from '../../store/budgetStore';
-import { useKingdomStore } from '../../store/kingdomStore';
+import { useFactStore } from '../../store/factStore';
+import { useProfileStore } from '../../store/profileStore';
 import { BILL_CATEGORY_OPTIONS, DAY_COUNT_OPTIONS } from '../../utils/constants';
 import BannerColorSelector from './BannerColorSelector';
 
@@ -15,16 +15,16 @@ function makeDraftBill() {
 }
 
 export default function OnboardingFlow() {
-  const kingdomName = useKingdomStore((state) => state.kingdomName);
-  const bannerColor = useKingdomStore((state) => state.bannerColor);
-  const hasCompletedOnboarding = useKingdomStore((state) => state.hasCompletedOnboarding);
-  const updateKingdomSettings = useKingdomStore((state) => state.updateKingdomSettings);
-  const completeOnboarding = useKingdomStore((state) => state.completeOnboarding);
+  const kingdomName = useProfileStore((state) => state.kingdomName);
+  const bannerColor = useProfileStore((state) => state.bannerColor);
+  const hasCompletedOnboarding = useProfileStore((state) => state.hasCompletedOnboarding);
+  const updateKingdomSettings = useProfileStore((state) => state.updateKingdomSettings);
+  const completeOnboarding = useProfileStore((state) => state.completeOnboarding);
 
-  const income = useBudgetStore((state) => state.income);
-  const bills = useBudgetStore((state) => state.bills);
-  const setIncome = useBudgetStore((state) => state.setIncome);
-  const replaceBills = useBudgetStore((state) => state.replaceBills);
+  const income = useFactStore((state) => state.income);
+  const bills = useFactStore((state) => state.bills);
+  const setIncome = useFactStore((state) => state.setIncome);
+  const replaceBills = useFactStore((state) => state.replaceBills);
 
   const [step, setStep] = useState(0);
   const [draftName, setDraftName] = useState(kingdomName);

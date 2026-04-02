@@ -3,11 +3,11 @@ import { useSearchParams } from 'react-router-dom';
 import OnboardingFlow from '../components/ui/OnboardingFlow';
 import SceneViewport from '../components/scene/SceneViewport';
 import KingdomPanel from '../components/ui/KingdomPanel';
-import { useKingdomStore } from '../store/kingdomStore';
+import { useProfileStore } from '../store/profileStore';
 import { KINGDOM_LAYOUT } from '../utils/constants';
 
 export default function KingdomPage() {
-  const reopenOnboarding = useKingdomStore((state) => state.reopenOnboarding);
+  const reopenOnboarding = useProfileStore((state) => state.reopenOnboarding);
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {

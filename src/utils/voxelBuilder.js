@@ -377,3 +377,81 @@ export function createRocks(x, z, count = 3) {
   group.position.set(x, 0, z);
   return group;
 }
+
+export function createLighthouse(x, z, config) {
+  const group = new THREE.Group();
+  group.position.set(x, 0, z);
+
+  const { lanternColor, lanternIntensity, lanternRange, roofColor, glassColor, glassOpacity } = config;
+  const S = 1;
+
+  // Colors — mostly stone white with 2 red bands
+  const STONE_LIGHT = '#F5F5F4';
+  const STONE_MID = '#E7E5E4';
+  const STONE_DARK = '#D6D3D1';
+  const RED_BAND = '#DC2626';
+
+  // === BASE (y 0-2): 3x3 wide foundation, dark stone ===
+  for (let y = 0; y < 3; y++) {
+    const color = y === 0 ? STONE_DARK : STONE_MID;
+    for (let bx = -1; bx <= 1; bx++) {
+      for (let bz = -1; bz <= 1; bz++) {
+        group.add(createVoxel(bx * S, y * S, bz * S, color, S));
+      }
+    }
+  }
+
+  // === SHAFT (y 3-8): tall column, mostly white stone, 2 red bands ===
+  // Cross shape (+) for the shaft — gives it a rounded/tapered feel
+  const shaftPattern = [
+    [0, -1], [0, 0], [0, 1], [-1, 0], [1, 0], // + shape
+  ];
+  for (let y = 3; y < 9; y++) {
+    const isRedBand = y === 5 || y === 7;
+    const color = isRedBand ? RED_BAND : STONE_LIGHT;
+    for (const [bx, bz] of shaftPattern) {
+      group.add(createVoxel(bx * S, y * S, bz * S, color, S));
+    }
+  }
+
+  // === WALKWAY (y 9): wider ring, dark stone — the balcony ===
+  for (let bx = -1; bx <= 1; bx++) {
+    for (let bz = -1; bz <= 1; bz++) {
+      group.add(createVoxel(bx * S, 9 * S, bz * S, STONE_DARK, S));
+    }
+  }
+
+  // === LANTERN ROOM (y 10): glass walls with light inside ===
+  const lanternY = 10 * S;
+  // Center light block
+  group.add(createVoxel(0, lanternY, 0, lanternColor, S));
+  // Glass on 4 cardinal sides
+  for (const [bx, bz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const glass = new THREE.Mesh(
+      getSharedBoxGeometry(S, S, S),
+      getSharedMaterial(glassColor, { transparent: true, opacity: glassOpacity }),
+    );
+    glass.position.set(bx * S, lanternY, bz * S);
+    glass.receiveShadow = true;
+    group.add(glass);
+  }
+
+  // === ROOF (y 11-12): pointed cap ===
+  // Wider cap
+  for (const [bx, bz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    group.add(createVoxel(bx * S, 11 * S, bz * S, roofColor, S));
+  }
+  // Peak
+  group.add(createVoxel(0, 12 * S, 0, roofColor, S));
+
+  // === POINT LIGHT (warm gold glow) ===
+  const light = new THREE.PointLight(
+    new THREE.Color(lanternColor).getHex(),
+    lanternIntensity,
+    lanternRange,
+  );
+  light.position.set(0, lanternY + 0.5, 0);
+  group.add(light);
+
+  return group;
+}

@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useBudgetStore, selectLifetimeSaved, selectMonthsCompleted } from '../../store/budgetStore';
-import { useAchievementStore } from '../../store/achievementStore';
-import { useGameStore } from '../../store/gameStore';
-import { useKingdomStore } from '../../store/kingdomStore';
-import { useSceneStore } from '../../store/sceneStore';
-import { useAudioStore } from '../../store/audioStore';
+import { useFactStore, selectLifetimeSaved, selectMonthsCompleted } from '../../store/factStore';
+import { useWorldStore } from '../../store/worldStore';
+import { useProfileStore } from '../../store/profileStore';
+import { useUiStore } from '../../store/uiStore';
 import { KINGDOM_BANNER_MAP } from '../../utils/constants';
 import {
   ACHIEVEMENT_MAP,
@@ -17,28 +15,28 @@ import AchievementsDialog from '../ui/AchievementsDialog';
 import IslandScene from './IslandScene';
 
 export default function SceneViewport() {
-  const income = useBudgetStore((state) => state.income);
-  const bills = useBudgetStore((state) => state.bills);
-  const history = useBudgetStore((state) => state.history);
-  const monthsCompleted = useBudgetStore(selectMonthsCompleted);
-  const lifetimeSaved = useBudgetStore(selectLifetimeSaved);
+  const income = useFactStore((state) => state.income);
+  const bills = useFactStore((state) => state.bills);
+  const history = useFactStore((state) => state.history);
+  const monthsCompleted = useFactStore(selectMonthsCompleted);
+  const lifetimeSaved = useFactStore(selectLifetimeSaved);
 
-  const level = useGameStore((state) => state.level);
-  const displayXp = useGameStore((state) => state.displayXp);
-  const armorTier = useGameStore((state) => state.armorTier);
-  const totalBillsSlain = useGameStore((state) => state.totalBillsSlain);
-  const battle = useGameStore((state) => state.battle);
-  const syncIslandStage = useGameStore((state) => state.syncIslandStage);
-  const kingdomName = useKingdomStore((state) => state.kingdomName);
-  const bannerColor = useKingdomStore((state) => state.bannerColor);
-  const captureScene = useSceneStore((state) => state.captureScene);
-  const muted = useAudioStore((state) => state.muted);
-  const toggleMuted = useAudioStore((state) => state.toggleMuted);
-  const unlockedAchievements = useAchievementStore((state) => state.unlocked);
-  const achievementToasts = useAchievementStore((state) => state.toastQueue);
-  const achievementDialogOpen = useAchievementStore((state) => state.dialogOpen);
-  const unlockAchievement = useAchievementStore((state) => state.unlockAchievement);
-  const setAchievementDialogOpen = useAchievementStore((state) => state.setDialogOpen);
+  const level = useWorldStore((state) => state.level);
+  const displayXp = useWorldStore((state) => state.displayXp);
+  const armorTier = useWorldStore((state) => state.armorTier);
+  const totalBillsSlain = useWorldStore((state) => state.totalBillsSlain);
+  const battle = useWorldStore((state) => state.battle);
+  const syncIslandStage = useWorldStore((state) => state.syncIslandStage);
+  const kingdomName = useProfileStore((state) => state.kingdomName);
+  const bannerColor = useProfileStore((state) => state.bannerColor);
+  const captureScene = useUiStore((state) => state.captureScene);
+  const muted = useUiStore((state) => state.muted);
+  const toggleMuted = useUiStore((state) => state.toggleMuted);
+  const unlockedAchievements = useWorldStore((state) => state.unlocked);
+  const achievementToasts = useWorldStore((state) => state.toastQueue);
+  const achievementDialogOpen = useWorldStore((state) => state.dialogOpen);
+  const unlockAchievement = useWorldStore((state) => state.unlockAchievement);
+  const setAchievementDialogOpen = useWorldStore((state) => state.setDialogOpen);
 
   const [captureAsset, setCaptureAsset] = useState(null);
   const [captureMessage, setCaptureMessage] = useState('');

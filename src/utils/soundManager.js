@@ -1,4 +1,4 @@
-import { useAudioStore } from '../store/audioStore';
+import { useUiStore } from '../store/uiStore';
 
 let audioContext = null;
 let masterGain = null;
@@ -66,7 +66,7 @@ function shouldSkipEvent(eventName, cooldownMs = 22) {
 
 function canPlay() {
   const context = getAudioContext();
-  return Boolean(context && context.state === 'running' && masterGain && !useAudioStore.getState().muted);
+  return Boolean(context && context.state === 'running' && masterGain && !useUiStore.getState().muted);
 }
 
 function createVoice(context, startAt, peak) {
@@ -251,7 +251,7 @@ export const soundManager = {
   },
 
   async playFromGesture(eventName) {
-    if (useAudioStore.getState().muted) {
+    if (useUiStore.getState().muted) {
       return false;
     }
 

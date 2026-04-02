@@ -200,3 +200,18 @@ export const BILL_CATEGORY_OPTIONS = [
 export const BILL_CATEGORY_MAP = Object.fromEntries(
   BILL_CATEGORY_OPTIONS.map((category) => [category.value, category]),
 );
+
+export const LIGHTHOUSE_CONFIG = {
+  position: { x: -1.5, z: -0.5 },
+  baseWidth: 3,
+  height: 8,
+  topWidth: 2,
+  bodyColors: ['#D6D3D1', '#F5F5F4'],
+  stripeColor: '#EF4444',
+  lanternColor: '#FBBF24',
+  lanternIntensity: 1.5,
+  lanternRange: 20,
+  roofColor: '#78350F',
+  glassColor: '#FEF3C7',
+  glassOpacity: 0.5,
+};

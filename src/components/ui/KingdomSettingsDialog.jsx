@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useKingdomStore } from '../../store/kingdomStore';
+import { useProfileStore } from '../../store/profileStore';
 import BannerColorSelector from './BannerColorSelector';
 
 export default function KingdomSettingsDialog({ open, onClose }) {
-  const kingdomName = useKingdomStore((state) => state.kingdomName);
-  const bannerColor = useKingdomStore((state) => state.bannerColor);
-  const updateKingdomSettings = useKingdomStore((state) => state.updateKingdomSettings);
-  const reopenOnboarding = useKingdomStore((state) => state.reopenOnboarding);
+  const kingdomName = useProfileStore((state) => state.kingdomName);
+  const bannerColor = useProfileStore((state) => state.bannerColor);
+  const updateKingdomSettings = useProfileStore((state) => state.updateKingdomSettings);
+  const reopenOnboarding = useProfileStore((state) => state.reopenOnboarding);
 
   const [draftName, setDraftName] = useState(kingdomName);
   const [draftColor, setDraftColor] = useState(bannerColor);
