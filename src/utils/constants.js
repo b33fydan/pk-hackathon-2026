@@ -201,6 +201,84 @@ export const BILL_CATEGORY_MAP = Object.fromEntries(
   BILL_CATEGORY_OPTIONS.map((category) => [category.value, category]),
 );
 
+export const HABIT_EMOJI_OPTIONS = [
+  { value: '🧘', label: 'Meditate' },
+  { value: '💪', label: 'Exercise' },
+  { value: '📖', label: 'Read' },
+  { value: '💧', label: 'Hydrate' },
+  { value: '✍️', label: 'Journal' },
+  { value: '🛌', label: 'Sleep Well' },
+  { value: '🥗', label: 'Eat Healthy' },
+  { value: '🚶', label: 'Walk' },
+];
+
+export const MEETING_INTENSITY_OPTIONS = [
+  { value: 'light', label: 'Light', color: '#4ade80' },
+  { value: 'normal', label: 'Normal', color: '#facc15' },
+  { value: 'heavy', label: 'Heavy', color: '#f87171' },
+];
+
+export const MILESTONE_TYPE_OPTIONS = [
+  { value: 'sales', label: 'Sales', emoji: '💰' },
+  { value: 'followers', label: 'Followers', emoji: '👥' },
+  { value: 'launch', label: 'Launch', emoji: '🚀' },
+  { value: 'streak', label: 'Streak', emoji: '🔥' },
+  { value: 'custom', label: 'Custom', emoji: '⭐' },
+];
+
+export const MILESTONE_TYPE_MAP = Object.fromEntries(
+  MILESTONE_TYPE_OPTIONS.map((type) => [type.value, type]),
+);
+
+export const MEETING_INTENSITY_MAP = Object.fromEntries(
+  MEETING_INTENSITY_OPTIONS.map((intensity) => [intensity.value, intensity]),
+);
+
+// ── Taste Layer (Epic 5) ─────────────────────────────────
+
+export const TASTE_DOMAINS = [
+  { key: 'identity', label: 'Identity', fields: ['kingdomName', 'companionName'] },
+  { key: 'aesthetic', label: 'Aesthetic', fields: ['moodPack', 'favoriteColorFamily', 'favoriteSymbols', 'favoriteAnimals'] },
+  { key: 'inspiration', label: 'Inspiration', fields: ['favoriteArtist', 'quoteSources', 'faithMode', 'encouragementStyle'] },
+  { key: 'lifeContext', label: 'Life Context', fields: ['interests', 'motivation', 'celebrationStyle', 'sideProjects', 'peopleWhoMatter'] },
+];
+
+export const MOOD_PACK_OPTIONS = [
+  { value: 'cozy', label: 'Cozy', emoji: '☕' },
+  { value: 'tactical', label: 'Tactical', emoji: '⚔️' },
+  { value: 'reverent', label: 'Reverent', emoji: '🕯️' },
+  { value: 'playful', label: 'Playful', emoji: '🎈' },
+];
+
+export const COLOR_FAMILY_OPTIONS = [
+  { value: 'warm', label: 'Warm' },
+  { value: 'cool', label: 'Cool' },
+  { value: 'earth', label: 'Earth' },
+  { value: 'jewel', label: 'Jewel' },
+  { value: 'pastel', label: 'Pastel' },
+  { value: 'monochrome', label: 'Monochrome' },
+];
+
+export const SYMBOL_OPTIONS = [
+  { value: 'lanterns', label: 'Lanterns' },
+  { value: 'books', label: 'Books' },
+  { value: 'flowers', label: 'Flowers' },
+  { value: 'banners', label: 'Banners' },
+  { value: 'stars', label: 'Stars' },
+  { value: 'shields', label: 'Shields' },
+];
+
+export const ENCOURAGEMENT_STYLE_OPTIONS = [
+  { value: 'stoic', label: 'Stoic' },
+  { value: 'warm', label: 'Warm' },
+  { value: 'celebratory', label: 'Celebratory' },
+  { value: 'quiet', label: 'Quiet' },
+];
+
+export const COMPANION_CONFIG = {
+  position: { x: -0.8, z: -1.2 },
+};
+
 export const LIGHTHOUSE_CONFIG = {
   position: { x: -1.5, z: -0.5 },
   baseWidth: 3,

@@ -12,6 +12,7 @@ import { soundManager } from '../../utils/soundManager';
 import { formatCompactCurrency, formatCurrency } from '../../utils/formatters';
 import { getHeroTierByKey, getIslandStageForMonths, getXpProgress } from '../../utils/progression';
 import AchievementsDialog from '../ui/AchievementsDialog';
+import BattleOverlay from '../ui/BattleOverlay';
 import IslandScene from './IslandScene';
 
 export default function SceneViewport() {
@@ -395,6 +396,7 @@ export default function SceneViewport() {
       )}
 
       <IslandScene />
+      <BattleOverlay />
       <AchievementsDialog
         open={achievementDialogOpen}
         onClose={() => setAchievementDialogOpen(false)}

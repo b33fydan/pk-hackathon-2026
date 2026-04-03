@@ -75,7 +75,7 @@ export function createVoxel(x, y, z, color, size = 1) {
   return voxel;
 }
 
-function createBoxMesh(x, y, z, width, height, depth, color, materialOptions = {}) {
+export function createBoxMesh(x, y, z, width, height, depth, color, materialOptions = {}) {
   const mesh = new THREE.Mesh(
     getSharedBoxGeometry(width, height, depth),
     getSharedMaterial(color, materialOptions),
@@ -87,7 +87,7 @@ function createBoxMesh(x, y, z, width, height, depth, color, materialOptions = {
   return mesh;
 }
 
-function rememberTransform(object) {
+export function rememberTransform(object) {
   object.userData.basePosition = object.position.clone();
   object.userData.baseRotation = object.rotation.clone();
   object.userData.baseScale = object.scale.clone();

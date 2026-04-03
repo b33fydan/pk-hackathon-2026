@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
   BILL_CATEGORY_MAP,
   COLORS,
+  COMPANION_CONFIG,
   getCameraConfigForWidth,
   ISLAND_GRID_SIZE,
   ISLAND_SCENE_CONFIG,
@@ -38,6 +39,13 @@ import {
 } from '../../utils/voxelBuilder';
 import { soundManager } from '../../utils/soundManager';
 import { getTimeLighting } from '../../utils/weatherSystem';
+import { createCompanion } from '../../utils/companionBuilder';
+import { animateCompanionIdle } from '../../utils/companionAnimations';
+import { getCurrentCompanionState } from '../../utils/companionFSM';
+import { buildAsset } from '../../utils/assetCatalog';
+import { getSlot } from '../../utils/placementSlots';
+import { assembleContext, pickDailyExpression, pruneExpired } from '../../utils/expressionPicker';
+import { useBondStore } from '../../store/bondStore';
 
 const HERO_GROUND_OFFSET = ISLAND_SCENE_CONFIG.groundOffsets.hero;
 const MONSTER_GROUND_OFFSET = ISLAND_SCENE_CONFIG.groundOffsets.monster;
@@ -622,8 +630,12 @@ function createRuntimeState() {
       monsters: null,
       hero: null,
       particles: null,
+      companion: null,
+      decorations: null,
     },
     heroGroup: null,
+    companionGroup: null,
+    companionStateId: null,
     monsterEntries: new Map(),
     particleEntries: [],
     animations: [],
@@ -890,6 +902,41 @@ function rebuildHero(runtime, state) {
   runtime.heroGroup = hero;
 }
 
+function rebuildCompanion(runtime, stateId) {
+  clearGroup(runtime.roots.companion);
+  runtime.companionGroup = null;
+  runtime.companionStateId = null;
+
+  if (!stateId) return;
+
+  const [cx, cz] = spreadScenePosition(COMPANION_CONFIG.position.x, COMPANION_CONFIG.position.z);
+  const companion = createCompanion(0, 0, stateId);
+  companion.scale.setScalar(LOCAL_CHARACTER_SCALE);
+  companion.position.set(cx, HERO_GROUND_OFFSET, cz);
+  runtime.roots.companion.add(companion);
+  runtime.companionGroup = companion;
+  runtime.companionStateId = stateId;
+}
+
+function rebuildDecorations(runtime, decorations) {
+  clearGroup(runtime.roots.decorations);
+
+  if (!decorations || decorations.length === 0) return;
+
+  decorations.forEach((deco) => {
+    const slot = getSlot(deco.placement);
+    if (!slot) return;
+
+    const [sx, sz] = spreadScenePosition(slot.x, slot.z);
+    const mesh = buildAsset(deco.artifact, 0, 0);
+    if (!mesh) return;
+
+    mesh.scale.setScalar(LOCAL_PROP_SCALE);
+    mesh.position.set(sx, STRUCTURE_GROUND_OFFSET, sz);
+    runtime.roots.decorations.add(mesh);
+  });
+}
+
 function syncIslandGrowth(runtime, islandStage) {
   if (runtime.currentStage > islandStage) {
     clearGroup(runtime.roots.growth);
@@ -922,6 +969,8 @@ function rebuildIdleScene(runtime, state) {
   rebuildMonsters(runtime, state.activeBills);
   rebuildHero(runtime, state);
   syncIslandGrowth(runtime, state.islandStage);
+  rebuildCompanion(runtime, state.companionState);
+  rebuildDecorations(runtime, state.decorations);
 }
 
 function setGroupOpacity(group, opacity) {
@@ -1088,6 +1137,11 @@ function updateIdleMotion(runtime, state, elapsedMs) {
     monsterIndex += 1;
     animateMonsterIdle(entry, currentIndex, safeElapsedMs);
   });
+
+  // Companion idle animation
+  if (runtime.companionGroup && runtime.companionStateId) {
+    animateCompanionIdle(runtime.companionGroup, runtime.companionStateId, safeElapsedMs);
+  }
 }
 
 function createParticleCube(color, size) {
@@ -1284,6 +1338,11 @@ async function runPaydaySequence(runtime, sceneStateRef) {
     previewXp: gameStore.xp,
   });
 
+  // Hide companion during battle (Epic 4 replaces this with transformation)
+  if (runtime.roots.companion) {
+    runtime.roots.companion.visible = false;
+  }
+
   rebuildHero(runtime, {
     ...state,
     heroVisible: true,
@@ -1336,6 +1395,7 @@ async function runPaydaySequence(runtime, sceneStateRef) {
     });
     await wait(runtime, 420);
     gameStore.resetBattle();
+    if (runtime.roots.companion) runtime.roots.companion.visible = true;
     rebuildIdleScene(runtime, sceneStateRef.current);
     return;
   }
@@ -1444,6 +1504,12 @@ async function runPaydaySequence(runtime, sceneStateRef) {
   }
 
   gameStore.resetBattle();
+
+  // Restore companion after battle
+  if (runtime.roots.companion) {
+    runtime.roots.companion.visible = true;
+  }
+
   rebuildIdleScene(runtime, sceneStateRef.current);
 }
 
@@ -1459,6 +1525,8 @@ export default function IslandScene() {
   const armorTier = useWorldStore((state) => state.armorTier);
   const islandStage = useWorldStore((state) => state.islandStage);
   const battle = useWorldStore((state) => state.battle);
+  const companionState = useWorldStore((state) => state.companionState);
+  const decorations = useWorldStore((state) => state.decorations);
   const kingdomName = useProfileStore((state) => state.kingdomName);
   const bannerColor = useProfileStore((state) => state.bannerColor);
   const setCaptureScene = useUiStore((state) => state.setCaptureScene);
@@ -1483,6 +1551,8 @@ export default function IslandScene() {
     bannerDarkHex,
     battleAnimating: battle.isAnimating,
     activeBillId: battle.activeBillId,
+    companionState,
+    decorations,
   });
   const runtimeRef = useRef(createRuntimeState());
 
@@ -1502,6 +1572,8 @@ export default function IslandScene() {
     bannerDarkHex,
     battleAnimating: battle.isAnimating,
     activeBillId: battle.activeBillId,
+    companionState,
+    decorations,
   };
 
   useEffect(() => {
@@ -1593,6 +1665,18 @@ export default function IslandScene() {
       sun.color.lerp(tl.sunColor, 0.3);
     }, 60000);
 
+    // Companion FSM tick — check state every 60 seconds
+    const companionTickInterval = setInterval(() => {
+      if (runtime.destroyed) return;
+      const paydayDate = useProfileStore.getState().paydayDate;
+      const nextState = getCurrentCompanionState(paydayDate);
+      if (nextState !== runtime.companionStateId) {
+        useWorldStore.getState().setCompanionState(nextState);
+        sceneStateRef.current.companionState = nextState;
+        rebuildCompanion(runtime, nextState);
+      }
+    }, 60000);
+
     const worldRoot = new THREE.Group();
     worldRoot.scale.setScalar(WORLD_SCALE);
     scene.add(worldRoot);
@@ -1606,7 +1690,9 @@ export default function IslandScene() {
     const monstersRoot = new THREE.Group();
     const heroRoot = new THREE.Group();
     const particlesRoot = new THREE.Group();
-    worldRoot.add(treasuryRoot, identityRoot, growthRoot, monstersRoot, heroRoot, particlesRoot);
+    const companionRoot = new THREE.Group();
+    const decorationsRoot = new THREE.Group();
+    worldRoot.add(treasuryRoot, identityRoot, growthRoot, monstersRoot, heroRoot, particlesRoot, companionRoot, decorationsRoot);
 
     runtime.renderer = renderer;
     runtime.scene = scene;
@@ -1620,7 +1706,35 @@ export default function IslandScene() {
       monsters: monstersRoot,
       hero: heroRoot,
       particles: particlesRoot,
+      companion: companionRoot,
+      decorations: decorationsRoot,
     };
+
+    // Resolve initial companion state from FSM
+    const initialPaydayDate = useProfileStore.getState().paydayDate;
+    const initialCompanionState = getCurrentCompanionState(initialPaydayDate);
+    useWorldStore.getState().setCompanionState(initialCompanionState);
+    sceneStateRef.current.companionState = initialCompanionState;
+
+    // Daily expression: prune expired, then pick today's decoration
+    const worldState = useWorldStore.getState();
+    const pruned = pruneExpired(worldState.decorations || []);
+    if (pruned.length !== (worldState.decorations || []).length) {
+      worldState.setDecorations(pruned);
+    }
+    const context = assembleContext({
+      factState: useFactStore.getState(),
+      profileState: useProfileStore.getState(),
+      bondState: useBondStore.getState(),
+      worldState: { ...worldState, decorations: pruned },
+    });
+    const expression = pickDailyExpression(context);
+    if (expression) {
+      useWorldStore.getState().addDecoration(expression);
+      sceneStateRef.current.decorations = [...pruned, expression];
+    } else {
+      sceneStateRef.current.decorations = pruned;
+    }
 
     rebuildIdleScene(runtime, sceneStateRef.current);
 
@@ -1811,6 +1925,7 @@ export default function IslandScene() {
     return () => {
       runtime.destroyed = true;
       clearInterval(timeLightingInterval);
+      clearInterval(companionTickInterval);
       hydrateSyncTimers.forEach((timerId) => window.clearTimeout(timerId));
       window.cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
@@ -1821,6 +1936,8 @@ export default function IslandScene() {
       clearGroup(monstersRoot);
       clearGroup(heroRoot);
       clearGroup(particlesRoot);
+      clearGroup(companionRoot);
+      clearGroup(decorationsRoot);
       disposeObject(worldRoot);
       renderer.dispose();
       setCaptureScene(null);
@@ -1858,7 +1975,7 @@ export default function IslandScene() {
 
     rebuildIdleScene(runtime, sceneStateRef.current);
     runtime.renderer.render(runtime.scene, runtime.camera);
-  }, [income, bills, heroVisible, heroPosition, armorTier, islandStage, bannerColorHex, bannerDarkHex, battle.isAnimating]);
+  }, [income, bills, heroVisible, heroPosition, armorTier, islandStage, bannerColorHex, bannerDarkHex, battle.isAnimating, companionState, decorations]);
 
   useEffect(() => {
     if (battle.status !== 'queued') {

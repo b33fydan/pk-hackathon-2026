@@ -45,6 +45,34 @@ export const useWorldStore = create(
       trophies: [],
       weatherState: 'clear',
 
+      // Companion actions
+      setCompanionState(companionState) {
+        set({ companionState });
+      },
+
+      // Decoration actions (Epic 6)
+      addDecoration(decoration) {
+        set((state) => ({
+          decorations: [...state.decorations, decoration],
+        }));
+      },
+
+      removeDecoration(id) {
+        set((state) => ({
+          decorations: state.decorations.filter((d) => d.id !== id),
+        }));
+      },
+
+      setDecorations(decorations) {
+        set({ decorations });
+      },
+
+      addTrophy(trophy) {
+        set((state) => ({
+          trophies: [...state.trophies, trophy],
+        }));
+      },
+
       // gameStore actions
       syncIslandStage(monthsCompleted) {
         set({

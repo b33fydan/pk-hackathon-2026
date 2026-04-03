@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { BILL_CATEGORY_MAP, BILL_CATEGORY_OPTIONS } from '../utils/constants';
+import { getTodayDate } from '../utils/formatters';
 
 function getCurrentMonthKey() {
   const now = new Date();
@@ -37,12 +38,16 @@ function getBillName(name, category) {
   return BILL_CATEGORY_MAP[category]?.label ?? 'Bill';
 }
 
-function createBillId() {
+function createId(prefix) {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
 
-  return `bill-${Date.now()}-${Math.round(Math.random() * 100000)}`;
+  return `${prefix}-${Date.now()}-${Math.round(Math.random() * 100000)}`;
+}
+
+function createBillId() {
+  return createId('bill');
 }
 
 export const selectTotalBills = (state) =>
@@ -55,6 +60,45 @@ export const selectLifetimeSaved = (state) =>
   state.history.reduce((total, month) => total + Math.max(month.surplus, 0), 0) +
   Math.max(selectSurplus(state), 0);
 
+export const selectActiveHabitDefinitions = (state) =>
+  state.habitDefinitions.filter((h) => !h.archived);
+
+export const selectHabitsForDate = (state, date) => {
+  const dateStr = date || getTodayDate();
+  return state.habits.filter((h) => h.date === dateStr);
+};
+
+export function selectHabitStreak(state, habitKey) {
+  const today = new Date();
+  let streak = 0;
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const entry = state.habits.find((h) => h.habitKey === habitKey && h.date === dateStr && h.completed);
+    if (entry) {
+      streak++;
+    } else if (i > 0) {
+      break;
+    }
+  }
+  return streak;
+}
+
+export const selectRecentMeetings = (state, days) => {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - (days || 7));
+  const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
+  return state.meetings.filter((m) => m.date >= cutoffStr).sort((a, b) => b.date.localeCompare(a.date));
+};
+
+export const selectRecentMilestones = (state, days) => {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - (days || 30));
+  const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
+  return state.milestones.filter((m) => m.date >= cutoffStr).sort((a, b) => b.date.localeCompare(a.date));
+};
+
 export const useFactStore = create(
   persist(
     (set, get) => ({
@@ -64,7 +108,8 @@ export const useFactStore = create(
       currentMonth: getCurrentMonthKey(),
       history: [],
 
-      // Stubs for Epic 3
+      // Life Event data (Epic 3)
+      habitDefinitions: [],
       habits: [],
       meetings: [],
       milestones: [],
@@ -197,6 +242,148 @@ export const useFactStore = create(
 
       getMonthsCompleted() {
         return selectMonthsCompleted(get());
+      },
+
+      // ── Habit Definitions ──────────────────────────────
+
+      addHabitDefinition({ label, emoji }) {
+        const trimmed = (label || '').trim();
+        if (!trimmed) return;
+
+        set((state) => ({
+          habitDefinitions: [
+            ...state.habitDefinitions,
+            {
+              id: createId('habit'),
+              key: trimmed.toLowerCase().replace(/\s+/g, '_'),
+              label: trimmed,
+              emoji: emoji || '⭐',
+              createdAt: new Date().toISOString(),
+              archived: false,
+            },
+          ],
+        }));
+      },
+
+      archiveHabitDefinition(id) {
+        set((state) => ({
+          habitDefinitions: state.habitDefinitions.map((h) =>
+            h.id === id ? { ...h, archived: true } : h,
+          ),
+        }));
+      },
+
+      // ── Habit Check-ins ────────────────────────────────
+
+      toggleHabit(habitKey, date) {
+        const dateStr = date || getTodayDate();
+        set((state) => {
+          const existing = state.habits.find(
+            (h) => h.habitKey === habitKey && h.date === dateStr,
+          );
+
+          if (existing) {
+            return {
+              habits: state.habits.map((h) =>
+                h.id === existing.id ? { ...h, completed: !h.completed } : h,
+              ),
+            };
+          }
+
+          return {
+            habits: [
+              ...state.habits,
+              {
+                id: createId('checkin'),
+                habitKey,
+                date: dateStr,
+                completed: true,
+              },
+            ],
+          };
+        });
+      },
+
+      // ── Meetings ───────────────────────────────────────
+
+      addMeeting({ label, intensity, date }) {
+        const trimmed = (label || '').trim();
+        if (!trimmed) return;
+
+        set((state) => ({
+          meetings: [
+            ...state.meetings,
+            {
+              id: createId('meeting'),
+              date: date || getTodayDate(),
+              label: trimmed,
+              intensity: intensity || 'normal',
+            },
+          ],
+        }));
+      },
+
+      removeMeeting(id) {
+        set((state) => ({
+          meetings: state.meetings.filter((m) => m.id !== id),
+        }));
+      },
+
+      // ── Milestones ─────────────────────────────────────
+
+      addMilestone({ type, value, note, date }) {
+        if (!value && value !== 0) return;
+
+        set((state) => ({
+          milestones: [
+            ...state.milestones,
+            {
+              id: createId('milestone'),
+              date: date || getTodayDate(),
+              type: type || 'custom',
+              value,
+              note: (note || '').trim() || undefined,
+            },
+          ],
+        }));
+      },
+
+      removeMilestone(id) {
+        set((state) => ({
+          milestones: state.milestones.filter((m) => m.id !== id),
+        }));
+      },
+
+      // ── Weekly Recaps ──────────────────────────────────
+
+      saveWeeklyRecap({ weekStart, weekEnd, wins, losses, notes }) {
+        if (!weekStart) return;
+
+        set((state) => {
+          const existing = state.weeklyRecaps.findIndex(
+            (r) => r.weekStart === weekStart,
+          );
+          const entry = {
+            id: existing >= 0 ? state.weeklyRecaps[existing].id : createId('recap'),
+            weekStart,
+            weekEnd,
+            wins: (wins || []).filter((w) => w.trim()),
+            losses: (losses || []).filter((l) => l.trim()),
+            notes: (notes || '').trim() || undefined,
+          };
+
+          if (existing >= 0) {
+            const next = [...state.weeklyRecaps];
+            next[existing] = entry;
+            return { weeklyRecaps: next };
+          }
+
+          return { weeklyRecaps: [...state.weeklyRecaps, entry] };
+        });
+      },
+
+      getWeeklyRecap(weekStart) {
+        return get().weeklyRecaps.find((r) => r.weekStart === weekStart) || null;
       },
     }),
     {

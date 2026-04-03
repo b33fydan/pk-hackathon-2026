@@ -18,10 +18,25 @@ export const useProfileStore = create(
       income: 0,
       paydayDate: 1,
 
-      // Taste Layer stubs (Epic 5)
+      // Taste Layer (Epic 5)
       preferences: {
         moodPack: 'cozy',
         activeSkin: 'adventurer',
+        // Aesthetic
+        favoriteColorFamily: null,
+        favoriteSymbols: [],
+        favoriteAnimals: '',
+        // Inspiration
+        favoriteArtist: '',
+        quoteSources: '',
+        faithMode: false,
+        encouragementStyle: 'warm',
+        // Life Context
+        interests: '',
+        motivation: '',
+        celebrationStyle: 'warm',
+        sideProjects: '',
+        peopleWhoMatter: '',
       },
 
       // Location for weather (Epic 6)
@@ -55,6 +70,9 @@ export const useProfileStore = create(
       },
       setLocation(location) {
         set({ location });
+      },
+      setCompanionName(companionName) {
+        set({ companionName: (companionName || '').trim() || 'Keeper' });
       },
       setPreferences(patch) {
         set((state) => ({ preferences: { ...state.preferences, ...patch } }));
