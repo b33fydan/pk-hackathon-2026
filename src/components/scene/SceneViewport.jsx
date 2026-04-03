@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react';
-import { useFactStore, selectLifetimeSaved, selectMonthsCompleted } from '../../store/factStore';
+import { useFactStore, selectLifetimeSaved, selectMonthsCompleted, selectHabitStreak, selectActiveHabitDefinitions } from '../../store/factStore';
 import { useWorldStore } from '../../store/worldStore';
 import { useProfileStore } from '../../store/profileStore';
 import { useUiStore } from '../../store/uiStore';
+import { useBondStore } from '../../store/bondStore';
 import { KINGDOM_BANNER_MAP } from '../../utils/constants';
 import {
   ACHIEVEMENT_MAP,
+  ACHIEVEMENT_TIERS,
   getUnlockedAchievementIds,
 } from '../../utils/achievements';
+import { buildAsset } from '../../utils/assetCatalog';
+import { getAvailableSlots } from '../../utils/placementSlots';
 import { soundManager } from '../../utils/soundManager';
 import { formatCompactCurrency, formatCurrency } from '../../utils/formatters';
 import { getHeroTierByKey, getIslandStageForMonths, getXpProgress } from '../../utils/progression';
@@ -62,6 +66,35 @@ export default function SceneViewport() {
   }, [captureAsset]);
 
   useEffect(() => {
+    // Compute extended metrics for achievement checks
+    const factState = useFactStore.getState();
+    const bondState = useBondStore.getState();
+    const habitDefs = selectActiveHabitDefinitions(factState);
+
+    // Longest streak across all habits
+    let longestStreak = 0;
+    for (const def of habitDefs) {
+      const streak = selectHabitStreak(factState, def.key);
+      if (streak > longestStreak) longestStreak = streak;
+    }
+
+    // Total habit completions
+    const habitsCompleted = factState.habits.filter((h) => h.completed).length;
+
+    // Milestone count
+    const milestoneCount = factState.milestones.length;
+
+    // Resilience: tough weeks with recaps, comebacks
+    const recaps = factState.weeklyRecaps;
+    const toughWeekRecaps = recaps.filter((r) => r.losses && r.losses.length > 0).length;
+    const comebackWeeks = recaps.reduce((count, r, i) => {
+      if (i === 0) return count;
+      const prev = recaps[i - 1];
+      const prevTough = prev.losses && prev.losses.length > 0;
+      const thisWin = r.wins && r.wins.length > 0 && (!r.losses || r.losses.length === 0);
+      return prevTough && thisWin ? count + 1 : count;
+    }, 0);
+
     const idsToUnlock = getUnlockedAchievementIds({
       totalBillsSlain,
       islandStage: stageMeta.stage,
@@ -69,10 +102,36 @@ export default function SceneViewport() {
       level,
       monthsCompleted,
       history,
+      habitsCompleted,
+      longestStreak,
+      bondLevel: bondState.bondLevel,
+      milestoneCount,
+      toughWeekRecaps,
+      comebackWeeks,
     });
 
     idsToUnlock.forEach((id) => {
-      unlockAchievement(id);
+      const isNew = unlockAchievement(id);
+      // Place trophy in world for gold+ achievements
+      if (isNew) {
+        const achievement = ACHIEVEMENT_MAP[id];
+        const tier = ACHIEVEMENT_TIERS[achievement?.tier];
+        if (tier && tier.order >= 3) {
+          const occupied = useWorldStore.getState().trophies.map((t) => t.placement);
+          const freeSlots = getAvailableSlots(occupied);
+          if (freeSlots.length > 0) {
+            const slot = freeSlots[Math.abs(id.split('').reduce((h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0)) % freeSlots.length];
+            useWorldStore.getState().addTrophy({
+              id: `trophy-${id}`,
+              achievementId: id,
+              artifact: `trophy_${achievement.tier}`,
+              placement: slot.id,
+              tier: achievement.tier,
+              createdAt: new Date().toISOString(),
+            });
+          }
+        }
+      }
     });
   }, [history, level, lifetimeSaved, monthsCompleted, stageMeta.stage, totalBillsSlain, unlockAchievement]);
 
