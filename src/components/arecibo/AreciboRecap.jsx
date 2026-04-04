@@ -96,8 +96,8 @@ export default function AreciboRecap({
   );
 
   const weekNumber = intent?.weekNumber || weekData?.weekNumber || 1;
-  const weekStart = weekData?.weekStart || new Date();
-  const weekEnd = weekData?.weekEnd || new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const weekStart = weekData?.weekStart ? new Date(weekData.weekStart + 'T00:00:00') : new Date();
+  const weekEnd = weekData?.weekEnd ? new Date(weekData.weekEnd + 'T00:00:00') : new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
   const weekDateRange = formatDateRange(weekStart, weekEnd);
 
   if (!open) {

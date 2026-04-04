@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useShallow } from 'zustand/shallow';
 import {
   useFactStore,
   selectActiveHabitDefinitions,
@@ -22,8 +23,8 @@ import FieldLabel from './FieldLabel';
 // ── Habits Section ───────────────────────────────────────
 
 function HabitSection() {
-  const definitions = useFactStore(selectActiveHabitDefinitions);
-  const todayCheckins = useFactStore((state) => selectHabitsForDate(state, getTodayDate()));
+  const definitions = useFactStore(useShallow(selectActiveHabitDefinitions));
+  const todayCheckins = useFactStore(useShallow((state) => selectHabitsForDate(state, getTodayDate())));
   const addHabitDefinition = useFactStore((state) => state.addHabitDefinition);
   const archiveHabitDefinition = useFactStore((state) => state.archiveHabitDefinition);
   const toggleHabit = useFactStore((state) => state.toggleHabit);
@@ -150,7 +151,7 @@ function HabitStreakDisplay({ habitKey }) {
 // ── Meetings Section ─────────────────────────────────────
 
 function MeetingSection() {
-  const recentMeetings = useFactStore((state) => selectRecentMeetings(state, 7));
+  const recentMeetings = useFactStore(useShallow((state) => selectRecentMeetings(state, 7)));
   const addMeeting = useFactStore((state) => state.addMeeting);
   const removeMeeting = useFactStore((state) => state.removeMeeting);
 
@@ -238,7 +239,7 @@ function MeetingSection() {
 // ── Milestones Section ───────────────────────────────────
 
 function MilestoneSection() {
-  const recentMilestones = useFactStore((state) => selectRecentMilestones(state, 30));
+  const recentMilestones = useFactStore(useShallow((state) => selectRecentMilestones(state, 30)));
   const addMilestone = useFactStore((state) => state.addMilestone);
   const removeMilestone = useFactStore((state) => state.removeMilestone);
 
