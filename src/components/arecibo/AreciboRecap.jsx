@@ -34,8 +34,9 @@ export default function AreciboRecap({
   onArchive,
 }) {
   const [showArchive, setShowArchive] = useState(false);
-  const { selectedSectionIndex, setSelectedSection, toggleSectionExpanded } =
-    useWeeklyStore();
+  const selectedSectionIndex = useWeeklyStore((state) => state.selectedSectionIndex);
+  const setSelectedSection = useWeeklyStore((state) => state.setSelectedSection);
+  const toggleSectionExpanded = useWeeklyStore((state) => state.toggleSectionExpanded);
 
   // Section metadata
   const sections = useMemo(

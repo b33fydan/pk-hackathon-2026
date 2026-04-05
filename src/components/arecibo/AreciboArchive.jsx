@@ -10,7 +10,7 @@ import styles from './styles.module.css';
  * @param {Function} props.onSelectWeek - Called with weekNumber when week selected
  */
 export default function AreciboArchive({ onSelectWeek }) {
-  const { archive } = useWeeklyStore();
+  const archive = useWeeklyStore((state) => state.archive);
   const [selectedWeek, setSelectedWeek] = useState(null);
 
   if (!archive || archive.length === 0) {
